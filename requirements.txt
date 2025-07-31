@@ -1,0 +1,12 @@
+# Flask API Template Dependencies
+# This file includes base dependencies for production use
+-r requirements/base.txt
+
+# Database drivers (install as needed based on your database choice)
+# For PostgreSQL (production recommended):
+# psycopg2-binary==2.9.7
+
+# For MySQL:
+# PyMySQL==1.1.0
+
+# SQLite is included with Python by default and works for development

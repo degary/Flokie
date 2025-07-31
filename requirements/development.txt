@@ -1,0 +1,16 @@
+# Development dependencies
+-r base.txt
+
+# Testing
+pytest==7.4.2
+pytest-flask==1.2.0
+pytest-cov==4.1.0
+
+# Code quality
+black==23.7.0
+flake8==6.0.0
+isort==5.12.0
+
+# Development tools
+flask-shell-ipython==0.5.3
+pre-commit==3.4.0
