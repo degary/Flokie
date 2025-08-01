@@ -14,7 +14,7 @@ faker==19.6.2
 
 # HTTP mocking
 responses==0.23.3
-requests-mock==1.11.0
+requests-mock==1.12.1
 
 # Database testing
 pytest-postgresql==5.0.0
