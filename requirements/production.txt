@@ -11,7 +11,7 @@ psycopg2-binary==2.9.7
 redis==5.0.1
 
 # Monitoring and logging
-sentry-sdk[flask]==1.32.0
+sentry-sdk[flask]==2.34.1
 
 # Security
 cryptography==41.0.4
