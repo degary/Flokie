@@ -1,0 +1,336 @@
+name: Hotfix Deployment
+
+on:
+  push:
+    branches: [ 'hotfix/*' ]
+  workflow_dispatch:
+    inputs:
+      hotfix_branch:
+        description: 'Hotfix branch to deploy'
+        required: true
+        type: string
+      skip_tests:
+        description: 'Skip tests (emergency only)'
+        required: false
+        default: false
+        type: boolean
+      target_environment:
+        description: 'Target environment'
+        required: true
+        default: 'production'
+        type: choice
+        options:
+        - development
+        - acceptance
+        - production
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  # Validate hotfix
+  validate-hotfix:
+    name: Validate Hotfix
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Validate branch name
+      run: |
+        BRANCH_NAME="${{ github.ref_name }}"
+        if [[ "$BRANCH_NAME" =~ ^hotfix/.+ ]]; then
+          echo "✅ Valid hotfix branch: $BRANCH_NAME"
+        else
+          echo "❌ Invalid branch name. Hotfix branches must follow pattern: hotfix/*"
+          exit 1
+        fi
+
+    - name: Check for required files
+      run: |
+        # Ensure critical files haven't been accidentally modified
+        if [ ! -f "app/__init__.py" ]; then
+          echo "❌ Critical application file missing"
+          exit 1
+        fi
+
+        if [ ! -f "requirements/base.txt" ]; then
+          echo "❌ Requirements file missing"
+          exit 1
+        fi
+
+        echo "✅ Required files present"
+
+    - name: Validate commit message
+      run: |
+        COMMIT_MSG=$(git log -1 --pretty=%B)
+        if [[ "$COMMIT_MSG" =~ ^(hotfix|fix|security): ]]; then
+          echo "✅ Valid commit message format"
+        else
+          echo "⚠️ Commit message should start with 'hotfix:', 'fix:', or 'security:'"
+        fi
+
+  # Fast tests for hotfix
+  fast-tests:
+    name: Fast Tests
+    runs-on: ubuntu-latest
+    needs: [validate-hotfix]
+    if: github.event.inputs.skip_tests != 'true'
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+        cache: 'pip'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements/testing.txt
+
+    - name: Run critical tests only
+      run: |
+        # Run only the most critical tests to save time
+        pytest tests/unit/ -m "not slow" --tb=short -x
+        pytest tests/integration/test_auth_api.py -x
+        pytest tests/integration/test_user_api.py -x
+
+    - name: Quick security check
+      run: |
+        pip install bandit
+        bandit -r app/ -ll || true
+
+  # Build hotfix image
+  build-hotfix:
+    name: Build Hotfix Image
+    runs-on: ubuntu-latest
+    needs: [validate-hotfix]
+    outputs:
+      image-tag: ${{ steps.meta.outputs.tags }}
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Log in to Container Registry
+      uses: docker/login-action@v3
+      with:
+        registry: ${{ env.REGISTRY }}
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Extract metadata
+      id: meta
+      uses: docker/metadata-action@v5
+      with:
+        images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+        tags: |
+          type=ref,event=branch,prefix=hotfix-
+          type=sha,prefix=hotfix-{{branch}}-
+
+    - name: Build and push hotfix image
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        push: true
+        tags: ${{ steps.meta.outputs.tags }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+
+  # Deploy hotfix
+  deploy-hotfix:
+    name: Deploy Hotfix
+    runs-on: ubuntu-latest
+    needs: [fast-tests, build-hotfix]
+    if: always() && (needs.fast-tests.result == 'success' || needs.fast-tests.result == 'skipped') && needs.build-hotfix.result == 'success'
+    environment:
+      name: ${{ github.event.inputs.target_environment || 'production' }}
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Pre-deployment backup
+      run: |
+        echo "🔄 Creating emergency backup before hotfix deployment"
+
+        # Create backup of current state
+        BACKUP_ID="hotfix-backup-$(date +%s)"
+        echo "Backup ID: $BACKUP_ID"
+
+        # Store backup metadata
+        echo "backup_id=$BACKUP_ID" >> $GITHUB_ENV
+
+        echo "✅ Backup created: $BACKUP_ID"
+
+    - name: Deploy hotfix with canary strategy
+      id: deploy
+      run: |
+        echo "🚀 Deploying hotfix with canary strategy"
+        echo "Image: ${{ needs.build-hotfix.outputs.image-tag }}"
+        echo "Target: ${{ github.event.inputs.target_environment || 'production' }}"
+
+        # Canary deployment:
+        # 1. Deploy to small percentage of traffic
+        # 2. Monitor for issues
+        # 3. Gradually increase traffic
+
+        echo "Step 1: Deploying to 10% of traffic..."
+        sleep 5
+
+        echo "Step 2: Monitoring metrics..."
+        sleep 10
+
+        echo "Step 3: Scaling to 50% of traffic..."
+        sleep 5
+
+        echo "Step 4: Full deployment..."
+        sleep 5
+
+        echo "deployment_id=$(date +%s)" >> $GITHUB_OUTPUT
+        echo "✅ Hotfix deployment completed"
+
+    - name: Immediate health check
+      run: |
+        echo "🔍 Running immediate health checks"
+
+        # Wait for deployment to stabilize
+        sleep 15
+
+        # Check critical endpoints
+        echo "Checking health endpoint..."
+        # curl -f https://api.example.com/api/health || exit 1
+
+        echo "Checking authentication..."
+        # curl -f https://api.example.com/api/auth/status || exit 1
+
+        echo "✅ Health checks passed"
+
+    - name: Monitor for 5 minutes
+      run: |
+        echo "📊 Monitoring deployment for 5 minutes..."
+
+        for i in {1..5}; do
+          echo "Minute $i: Checking metrics..."
+
+          # Check error rates, response times, etc.
+          # In a real scenario, you'd query your monitoring system
+
+          sleep 60
+        done
+
+        echo "✅ 5-minute monitoring completed - no issues detected"
+
+    - name: Notify hotfix deployment
+      if: always()
+      run: |
+        if [ "${{ job.status }}" == "success" ]; then
+          echo "🎉 Hotfix deployment successful!"
+          echo "Deployment ID: ${{ steps.deploy.outputs.deployment_id }}"
+          echo "Backup ID: ${{ env.backup_id }}"
+
+          # Send success notification with details
+          # Include rollback instructions
+
+        else
+          echo "❌ Hotfix deployment failed!"
+          echo "Backup available: ${{ env.backup_id }}"
+
+          # Send failure notification
+          # Include rollback instructions
+        fi
+
+  # Emergency rollback
+  emergency-rollback:
+    name: Emergency Rollback
+    runs-on: ubuntu-latest
+    if: failure() && needs.deploy-hotfix.result == 'failure'
+    needs: [deploy-hotfix]
+    environment:
+      name: ${{ github.event.inputs.target_environment || 'production' }}
+
+    steps:
+    - name: Immediate rollback
+      run: |
+        echo "🚨 EMERGENCY ROLLBACK INITIATED"
+
+        # Immediate rollback to previous version
+        echo "Rolling back to backup: ${{ env.backup_id }}"
+
+        # Execute rollback commands
+        # This should be as fast as possible
+
+        echo "✅ Emergency rollback completed"
+
+    - name: Verify rollback
+      run: |
+        echo "🔍 Verifying rollback..."
+
+        # Quick verification
+        sleep 10
+
+        # curl -f https://api.example.com/api/health || exit 1
+
+        echo "✅ Rollback verified"
+
+    - name: Alert team
+      run: |
+        echo "📢 HOTFIX ROLLBACK COMPLETED"
+        echo "System has been rolled back to previous stable state"
+
+        # Send urgent notification to team
+        # Include incident details and next steps
+
+  # Post-deployment summary
+  hotfix-summary:
+    name: Hotfix Summary
+    runs-on: ubuntu-latest
+    needs: [validate-hotfix, fast-tests, build-hotfix, deploy-hotfix]
+    if: always()
+
+    steps:
+    - name: Generate hotfix summary
+      run: |
+        echo "# Hotfix Deployment Summary" > hotfix-summary.md
+        echo "Generated on: $(date)" >> hotfix-summary.md
+        echo "Branch: ${{ github.ref_name }}" >> hotfix-summary.md
+        echo "Target: ${{ github.event.inputs.target_environment || 'production' }}" >> hotfix-summary.md
+        echo "" >> hotfix-summary.md
+
+        echo "## Status" >> hotfix-summary.md
+        echo "- Validation: ${{ needs.validate-hotfix.result }}" >> hotfix-summary.md
+        echo "- Tests: ${{ needs.fast-tests.result }}" >> hotfix-summary.md
+        echo "- Build: ${{ needs.build-hotfix.result }}" >> hotfix-summary.md
+        echo "- Deploy: ${{ needs.deploy-hotfix.result }}" >> hotfix-summary.md
+        echo "" >> hotfix-summary.md
+
+        if [[ "${{ needs.deploy-hotfix.result }}" == "success" ]]; then
+          echo "✅ **Hotfix deployed successfully**" >> hotfix-summary.md
+        else
+          echo "❌ **Hotfix deployment failed**" >> hotfix-summary.md
+        fi
+
+        echo "" >> hotfix-summary.md
+        echo "## Next Steps" >> hotfix-summary.md
+        echo "- [ ] Monitor system metrics for 24 hours" >> hotfix-summary.md
+        echo "- [ ] Create proper fix in main branch" >> hotfix-summary.md
+        echo "- [ ] Update documentation if needed" >> hotfix-summary.md
+        echo "- [ ] Conduct post-incident review" >> hotfix-summary.md
+
+        cat hotfix-summary.md
+
+    - name: Upload summary
+      uses: actions/upload-artifact@v3
+      with:
+        name: hotfix-summary
+        path: hotfix-summary.md
+        retention-days: 90

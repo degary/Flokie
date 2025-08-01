@@ -1,0 +1,299 @@
+name: Continuous Integration
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+env:
+  PYTHON_VERSION: '3.11'
+  FLASK_CONFIG: testing
+
+jobs:
+  # Code Quality Checks
+  code-quality:
+    name: Code Quality
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+        cache: 'pip'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements/development.txt
+
+    - name: Run Black (Code Formatting)
+      run: |
+        black --check --diff app/ tests/
+
+    - name: Run isort (Import Sorting)
+      run: |
+        isort --check-only --diff app/ tests/
+
+    - name: Run Flake8 (Linting)
+      run: |
+        flake8 app/ tests/
+
+    - name: Run MyPy (Type Checking)
+      run: |
+        # Install mypy if not in requirements
+        pip install mypy types-Flask types-requests
+        mypy app/ --ignore-missing-imports || true
+
+  # Security Scanning
+  security:
+    name: Security Scan
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+        cache: 'pip'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install safety bandit
+        pip install -r requirements/base.txt
+
+    - name: Run Safety (Dependency Vulnerability Check)
+      run: |
+        safety check --json || true
+
+    - name: Run Bandit (Security Linting)
+      run: |
+        bandit -r app/ -f json || true
+
+  # Unit Tests
+  unit-tests:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        python-version: ['3.9', '3.10', '3.11']
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python-version }}
+        cache: 'pip'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements/testing.txt
+
+    - name: Run unit tests
+      run: |
+        pytest tests/unit/ -v --cov=app --cov-report=xml --cov-report=term-missing
+
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v3
+      with:
+        file: ./coverage.xml
+        flags: unittests
+        name: codecov-umbrella
+        fail_ci_if_error: false
+
+  # Integration Tests
+  integration-tests:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: testpass
+          POSTGRES_USER: testuser
+          POSTGRES_DB: testdb
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    env:
+      DATABASE_URL: postgresql://testuser:testpass@localhost:5432/testdb
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+        cache: 'pip'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements/testing.txt
+        pip install psycopg2-binary
+
+    - name: Run database migrations
+      run: |
+        export FLASK_APP=run.py
+        flask db upgrade
+
+    - name: Run integration tests
+      run: |
+        pytest tests/integration/ -v --cov=app --cov-report=xml
+
+    - name: Upload integration test coverage
+      uses: codecov/codecov-action@v3
+      with:
+        file: ./coverage.xml
+        flags: integration
+        name: codecov-integration
+        fail_ci_if_error: false
+
+  # Docker Build and Test
+  docker-build:
+    name: Docker Build & Test
+    runs-on: ubuntu-latest
+    needs: [code-quality, unit-tests]
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Build Docker image
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        push: false
+        tags: flask-api-template:test
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+
+    - name: Test Docker image
+      run: |
+        # Run container in background
+        docker run -d --name test-container -p 5000:5000 \
+          -e FLASK_CONFIG=testing \
+          flask-api-template:test
+
+        # Wait for container to start
+        sleep 10
+
+        # Test health endpoint
+        curl -f http://localhost:5000/api/health || exit 1
+
+        # Stop container
+        docker stop test-container
+        docker rm test-container
+
+  # Container Security Scanning
+  container-security:
+    name: Container Security Scan
+    runs-on: ubuntu-latest
+    needs: [docker-build]
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Build Docker image for scanning
+      run: |
+        docker build -t flask-api-template:scan .
+
+    - name: Run Trivy vulnerability scanner
+      uses: aquasecurity/trivy-action@master
+      with:
+        image-ref: 'flask-api-template:scan'
+        format: 'sarif'
+        output: 'trivy-results.sarif'
+
+    - name: Upload Trivy scan results to GitHub Security tab
+      uses: github/codeql-action/upload-sarif@v2
+      if: always()
+      with:
+        sarif_file: 'trivy-results.sarif'
+
+  # Performance Tests
+  performance-tests:
+    name: Performance Tests
+    runs-on: ubuntu-latest
+    needs: [integration-tests]
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+        cache: 'pip'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements/testing.txt
+        pip install locust
+
+    - name: Run performance benchmarks
+      run: |
+        pytest tests/ -m "not slow" --benchmark-only --benchmark-json=benchmark.json || true
+
+    - name: Store benchmark result
+      uses: benchmark-action/github-action-benchmark@v1
+      if: github.ref == 'refs/heads/main'
+      with:
+        tool: 'pytest'
+        output-file-path: benchmark.json
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        auto-push: true
+
+  # Build Summary
+  build-summary:
+    name: Build Summary
+    runs-on: ubuntu-latest
+    needs: [code-quality, security, unit-tests, integration-tests, docker-build, container-security]
+    if: always()
+
+    steps:
+    - name: Check build status
+      run: |
+        echo "Code Quality: ${{ needs.code-quality.result }}"
+        echo "Security: ${{ needs.security.result }}"
+        echo "Unit Tests: ${{ needs.unit-tests.result }}"
+        echo "Integration Tests: ${{ needs.integration-tests.result }}"
+        echo "Docker Build: ${{ needs.docker-build.result }}"
+        echo "Container Security: ${{ needs.container-security.result }}"
+
+        if [[ "${{ needs.code-quality.result }}" == "failure" ||
+              "${{ needs.unit-tests.result }}" == "failure" ||
+              "${{ needs.integration-tests.result }}" == "failure" ||
+              "${{ needs.docker-build.result }}" == "failure" ]]; then
+          echo "❌ Build failed - check the logs above"
+          exit 1
+        else
+          echo "✅ All checks passed!"
+        fi

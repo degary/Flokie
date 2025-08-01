@@ -244,6 +244,11 @@ Thumbs.db
 secrets/
 .secrets/
 
+# Secrets management
+*.env.backup.*
+*-secrets-backup-*.enc
+.secrets/
+
 # Local development
 local_config.py
 dev_config.py

@@ -1,0 +1,45 @@
+# Testing dependencies
+-r base.txt
+
+# Core testing framework
+pytest==7.4.2
+pytest-flask==1.2.0
+pytest-cov==4.1.0
+pytest-mock==3.11.1
+pytest-xdist==3.3.1
+
+# Test data generation
+factory-boy==3.3.0
+faker==19.6.2
+
+# HTTP mocking
+responses==0.23.3
+requests-mock==1.11.0
+
+# Database testing
+pytest-postgresql==5.0.0
+pytest-alembic==0.10.7
+
+# Performance testing
+pytest-benchmark==4.0.0
+pytest-timeout==2.1.0
+
+# Test reporting
+pytest-html==3.2.0
+pytest-json-report==1.5.0
+
+# Additional testing utilities
+pytest-sugar==0.9.7
+pytest-clarity==1.0.1
+pytest-randomly==3.15.0
+pytest-env==1.1.0
+
+# Snapshot testing
+syrupy==4.6.0
+
+# Property-based testing
+hypothesis==6.88.1
+
+# Test fixtures and utilities
+pytest-factoryboy==2.5.1
+pytest-freezegun==0.4.2

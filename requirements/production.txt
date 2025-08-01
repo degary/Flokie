@@ -1,0 +1,26 @@
+# Production dependencies
+-r base.txt
+
+# Production WSGI server
+gunicorn==21.2.0
+
+# Database drivers
+psycopg2-binary==2.9.7
+
+# Redis client
+redis==5.0.1
+
+# Monitoring and logging
+sentry-sdk[flask]==1.32.0
+
+# Security
+cryptography==41.0.4
+
+# Performance monitoring
+newrelic==9.0.0
+
+# Health checks and metrics
+prometheus-client==0.17.1
+
+# Production utilities
+supervisor==4.2.5

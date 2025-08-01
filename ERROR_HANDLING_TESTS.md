@@ -138,7 +138,7 @@ tests/test_error_handling.py::TestCustomExceptions::test_authentication_error PA
 def test_custom_exception(self):
     """Test custom exception."""
     error = CustomException("Custom error message")
-    
+
     assert error.status_code == 400
     assert error.error_code == 'CUSTOM_ERROR'
     assert error.message == "Custom error message"

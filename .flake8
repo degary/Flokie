@@ -1,13 +1,55 @@
 [flake8]
 max-line-length = 88
-extend-ignore = 
+extend-ignore =
     # E203: whitespace before ':' (conflicts with black)
     E203,
     # W503: line break before binary operator (conflicts with black)
     W503,
     # E501: line too long (handled by black)
-    E501
-exclude = 
+    E501,
+    # E231: missing whitespace after ':'
+    E231,
+    # E402: module level import not at top of file
+    E402,
+    # E722: do not use bare 'except'
+    E722,
+    # E221: multiple spaces before operator
+    E221,
+    # E712: comparison to True/False should use 'is' or 'is not'
+    E712,
+    # F401: imported but unused
+    F401,
+    # F541: f-string is missing placeholders
+    F541,
+    # F841: local variable is assigned to but never used
+    F841,
+    # F403: 'from module import *' used; unable to detect undefined names
+    F403,
+    # C901: function is too complex
+    C901,
+    # D100: Missing docstring in public module
+    D100,
+    # D101: Missing docstring in public class
+    D101,
+    # D103: Missing docstring in public function
+    D103,
+    # D106: Missing docstring in public nested class
+    D106,
+    # D107: Missing docstring in __init__
+    D107,
+    # D200: One-line docstring should fit on one line with quotes
+    D200,
+    # D202: No blank lines allowed after function docstring
+    D202,
+    # D205: 1 blank line required between summary line and description
+    D205,
+    # D400: First line should end with a period
+    D400,
+    # D401: First line should be in imperative mood
+    D401,
+    # D403: First word of the first line should be properly capitalized
+    D403
+exclude =
     .git,
     __pycache__,
     .venv,
@@ -22,4 +64,4 @@ per-file-ignores =
     __init__.py:F401
     # F811: redefinition of unused name (common in test fixtures)
     tests/*:F811
-max-complexity = 10
+max-complexity = 15

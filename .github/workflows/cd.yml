@@ -1,0 +1,361 @@
+name: Continuous Deployment
+
+on:
+  push:
+    branches: [ main ]
+    tags: [ 'v*' ]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy to'
+        required: true
+        default: 'development'
+        type: choice
+        options:
+        - development
+        - acceptance
+        - production
+      force_deploy:
+        description: 'Force deployment even if tests fail'
+        required: false
+        default: false
+        type: boolean
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  # Build and push Docker image
+  build-and-push:
+    name: Build and Push Docker Image
+    runs-on: ubuntu-latest
+    outputs:
+      image-tag: ${{ steps.meta.outputs.tags }}
+      image-digest: ${{ steps.build.outputs.digest }}
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Log in to Container Registry
+      uses: docker/login-action@v3
+      with:
+        registry: ${{ env.REGISTRY }}
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Extract metadata
+      id: meta
+      uses: docker/metadata-action@v5
+      with:
+        images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+        tags: |
+          type=ref,event=branch
+          type=ref,event=pr
+          type=semver,pattern={{version}}
+          type=semver,pattern={{major}}.{{minor}}
+          type=sha,prefix={{branch}}-
+          type=raw,value=latest,enable={{is_default_branch}}
+
+    - name: Build and push Docker image
+      id: build
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        push: true
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+        platforms: linux/amd64,linux/arm64
+
+  # Deploy to Development Environment
+  deploy-development:
+    name: Deploy to Development
+    runs-on: ubuntu-latest
+    needs: [build-and-push]
+    if: github.ref == 'refs/heads/main' || (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'development')
+    environment:
+      name: development
+      url: https://dev-api.example.com
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Deploy to Development
+      run: |
+        echo "Deploying to Development Environment"
+        echo "Image: ${{ needs.build-and-push.outputs.image-tag }}"
+
+        # Here you would typically:
+        # 1. Connect to your deployment infrastructure (k8s, docker swarm, etc.)
+        # 2. Update the deployment configuration
+        # 3. Apply the changes
+
+        # Example for Kubernetes:
+        # kubectl set image deployment/flask-api-template flask-api-template=${{ needs.build-and-push.outputs.image-tag }}
+
+        # Example for Docker Compose:
+        # docker-compose -f docker-compose.dev.yml pull
+        # docker-compose -f docker-compose.dev.yml up -d
+
+        # For this template, we'll simulate the deployment
+        echo "✅ Deployment to development completed successfully"
+
+    - name: Run smoke tests
+      run: |
+        echo "Running smoke tests against development environment"
+
+        # Wait for deployment to be ready
+        sleep 30
+
+        # Example smoke tests (replace with actual endpoints)
+        # curl -f https://dev-api.example.com/api/health || exit 1
+        # curl -f https://dev-api.example.com/api/version || exit 1
+
+        echo "✅ Smoke tests passed"
+
+    - name: Notify deployment status
+      if: always()
+      run: |
+        if [ "${{ job.status }}" == "success" ]; then
+          echo "✅ Development deployment successful"
+          # Send success notification (Slack, Teams, etc.)
+        else
+          echo "❌ Development deployment failed"
+          # Send failure notification
+        fi
+
+  # Deploy to Acceptance Environment
+  deploy-acceptance:
+    name: Deploy to Acceptance
+    runs-on: ubuntu-latest
+    needs: [build-and-push, deploy-development]
+    if: github.ref == 'refs/heads/main' || (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'acceptance')
+    environment:
+      name: acceptance
+      url: https://acc-api.example.com
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Deploy to Acceptance
+      run: |
+        echo "Deploying to Acceptance Environment"
+        echo "Image: ${{ needs.build-and-push.outputs.image-tag }}"
+
+        # Acceptance deployment logic
+        # This environment typically mirrors production more closely
+
+        echo "✅ Deployment to acceptance completed successfully"
+
+    - name: Run acceptance tests
+      run: |
+        echo "Running acceptance tests"
+
+        # Wait for deployment to be ready
+        sleep 30
+
+        # Run more comprehensive tests
+        # pytest tests/acceptance/ --env=acceptance
+
+        echo "✅ Acceptance tests passed"
+
+    - name: Performance tests
+      run: |
+        echo "Running performance tests"
+
+        # Example with locust or other performance testing tools
+        # locust -f tests/performance/locustfile.py --host=https://acc-api.example.com --users=10 --spawn-rate=2 --run-time=60s --headless
+
+        echo "✅ Performance tests completed"
+
+  # Deploy to Production Environment
+  deploy-production:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: [build-and-push, deploy-acceptance]
+    if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'production')
+    environment:
+      name: production
+      url: https://api.example.com
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Pre-deployment checks
+      run: |
+        echo "Running pre-deployment checks"
+
+        # Check if all required secrets are available
+        if [ -z "${{ secrets.PROD_DATABASE_URL }}" ]; then
+          echo "❌ Production database URL not configured"
+          exit 1
+        fi
+
+        # Check if acceptance tests passed
+        echo "✅ Pre-deployment checks passed"
+
+    - name: Create deployment backup
+      run: |
+        echo "Creating deployment backup"
+
+        # Backup current production state
+        # This could include database backups, configuration snapshots, etc.
+
+        echo "✅ Backup created successfully"
+
+    - name: Deploy to Production (Blue-Green)
+      id: deploy
+      run: |
+        echo "Starting Blue-Green deployment to Production"
+        echo "Image: ${{ needs.build-and-push.outputs.image-tag }}"
+
+        # Blue-Green deployment strategy:
+        # 1. Deploy to "green" environment
+        # 2. Run health checks
+        # 3. Switch traffic from "blue" to "green"
+        # 4. Keep "blue" as backup for quick rollback
+
+        # Example implementation:
+        # 1. Deploy new version to green environment
+        echo "Deploying to green environment..."
+
+        # 2. Health check on green environment
+        echo "Running health checks on green environment..."
+        sleep 10
+
+        # 3. Switch traffic
+        echo "Switching traffic to green environment..."
+
+        # 4. Mark deployment as successful
+        echo "deployment_id=$(date +%s)" >> $GITHUB_OUTPUT
+        echo "✅ Production deployment completed successfully"
+
+    - name: Post-deployment verification
+      run: |
+        echo "Running post-deployment verification"
+
+        # Verify critical functionality
+        # curl -f https://api.example.com/api/health || exit 1
+        # curl -f https://api.example.com/api/version || exit 1
+
+        # Check key metrics
+        echo "Checking application metrics..."
+
+        echo "✅ Post-deployment verification passed"
+
+    - name: Update deployment status
+      if: always()
+      run: |
+        if [ "${{ job.status }}" == "success" ]; then
+          echo "✅ Production deployment successful"
+          echo "Deployment ID: ${{ steps.deploy.outputs.deployment_id }}"
+
+          # Update deployment tracking system
+          # Send success notifications
+
+        else
+          echo "❌ Production deployment failed"
+          echo "Initiating rollback procedures..."
+
+          # Trigger rollback
+          # Send failure notifications
+        fi
+
+  # Rollback capability
+  rollback:
+    name: Rollback Deployment
+    runs-on: ubuntu-latest
+    if: failure() && (needs.deploy-production.result == 'failure' || github.event_name == 'workflow_dispatch')
+    needs: [deploy-production]
+    environment:
+      name: production
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Initiate rollback
+      run: |
+        echo "🔄 Initiating rollback procedure"
+
+        # Get previous successful deployment
+        # Switch traffic back to blue environment
+        # Restore previous configuration
+
+        echo "Rolling back to previous version..."
+
+        # Example rollback commands:
+        # kubectl rollout undo deployment/flask-api-template
+        # docker-compose -f docker-compose.prod.yml down
+        # docker-compose -f docker-compose.prod.yml up -d --scale flask-api-template=0
+        # docker-compose -f docker-compose.prod.yml up -d
+
+        echo "✅ Rollback completed successfully"
+
+    - name: Verify rollback
+      run: |
+        echo "Verifying rollback..."
+
+        # Wait for rollback to complete
+        sleep 30
+
+        # Verify system is working
+        # curl -f https://api.example.com/api/health || exit 1
+
+        echo "✅ Rollback verification passed"
+
+    - name: Notify rollback completion
+      run: |
+        echo "📢 Rollback completed and verified"
+        # Send rollback notification to team
+
+  # Deployment summary
+  deployment-summary:
+    name: Deployment Summary
+    runs-on: ubuntu-latest
+    needs: [build-and-push, deploy-development, deploy-acceptance, deploy-production]
+    if: always()
+
+    steps:
+    - name: Generate deployment summary
+      run: |
+        echo "# Deployment Summary" > deployment-summary.md
+        echo "Generated on: $(date)" >> deployment-summary.md
+        echo "" >> deployment-summary.md
+
+        echo "## Build Status" >> deployment-summary.md
+        echo "- Build and Push: ${{ needs.build-and-push.result }}" >> deployment-summary.md
+        echo "- Image: ${{ needs.build-and-push.outputs.image-tag }}" >> deployment-summary.md
+        echo "" >> deployment-summary.md
+
+        echo "## Deployment Status" >> deployment-summary.md
+        echo "- Development: ${{ needs.deploy-development.result }}" >> deployment-summary.md
+        echo "- Acceptance: ${{ needs.deploy-acceptance.result }}" >> deployment-summary.md
+        echo "- Production: ${{ needs.deploy-production.result }}" >> deployment-summary.md
+        echo "" >> deployment-summary.md
+
+        if [[ "${{ needs.deploy-production.result }}" == "success" ]]; then
+          echo "🎉 **Production deployment successful!**" >> deployment-summary.md
+        elif [[ "${{ needs.deploy-production.result }}" == "failure" ]]; then
+          echo "⚠️ **Production deployment failed - check logs**" >> deployment-summary.md
+        else
+          echo "ℹ️ **Production deployment skipped**" >> deployment-summary.md
+        fi
+
+        cat deployment-summary.md
+
+    - name: Upload deployment summary
+      uses: actions/upload-artifact@v3
+      with:
+        name: deployment-summary
+        path: deployment-summary.md
+        retention-days: 90

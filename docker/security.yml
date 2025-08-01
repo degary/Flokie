@@ -1,0 +1,80 @@
+# Docker Security Configuration
+# This file contains security best practices for Docker containers
+
+version: '3.8'
+
+# Security configurations that can be extended by other compose files
+x-security-defaults: &security-defaults
+  security_opt:
+    - no-new-privileges:true
+  read_only: true
+  tmpfs:
+    - /tmp:noexec,nosuid,size=100m
+
+x-app-security: &app-security
+  <<: *security-defaults
+  user: "1000:1000"
+  cap_drop:
+    - ALL
+  cap_add:
+    - NET_BIND_SERVICE
+
+x-db-security: &db-security
+  <<: *security-defaults
+  cap_drop:
+    - ALL
+  cap_add:
+    - SETUID
+    - SETGID
+    - DAC_OVERRIDE
+
+x-redis-security: &redis-security
+  <<: *security-defaults
+  cap_drop:
+    - ALL
+
+x-nginx-security: &nginx-security
+  <<: *security-defaults
+  cap_drop:
+    - ALL
+  cap_add:
+    - NET_BIND_SERVICE
+    - CHOWN
+    - SETUID
+    - SETGID
+
+# Resource limits
+x-resource-limits: &resource-limits
+  deploy:
+    resources:
+      limits:
+        pids: 100
+      reservations:
+        memory: 64M
+
+# Logging configuration
+x-logging: &logging
+  logging:
+    driver: "json-file"
+    options:
+      max-size: "10m"
+      max-file: "3"
+      labels: "service,environment"
+
+# Health check defaults
+x-healthcheck: &healthcheck
+  healthcheck:
+    interval: 30s
+    timeout: 10s
+    retries: 3
+    start_period: 30s
+
+services:
+  # This file is meant to be extended by other compose files
+  # Example usage in docker-compose.prod.yml:
+  #
+  # services:
+  #   app:
+  #     <<: *app-security
+  #     <<: *logging
+  #     # ... other app configuration

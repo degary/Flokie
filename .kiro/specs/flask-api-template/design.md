@@ -96,7 +96,7 @@ flask-api-template/
 #### 1. 应用工厂 (Application Factory)
 - **职责**: 创建和配置 Flask 应用实例
 - **接口**: `create_app(config_name: str) -> Flask`
-- **功能**: 
+- **功能**:
   - 根据环境加载配置
   - 初始化扩展
   - 注册蓝图
@@ -112,7 +112,7 @@ flask-api-template/
 
 #### 3. 认证服务 (Authentication Service)
 - **职责**: 处理用户认证和授权
-- **接口**: 
+- **接口**:
   - `login(credentials: dict) -> dict`
   - `verify_token(token: str) -> dict`
   - `refresh_token(refresh_token: str) -> dict`
@@ -174,7 +174,7 @@ class BaseModel:
     id: int
     created_at: datetime
     updated_at: datetime
-    
+
     def to_dict(self) -> dict
     def from_dict(cls, data: dict) -> 'BaseModel'
 ```
@@ -186,16 +186,16 @@ class BaseModel:
 class APIException(Exception):
     status_code: int
     message: str
-    
+
 class ValidationError(APIException):
     status_code = 400
-    
+
 class AuthenticationError(APIException):
     status_code = 401
-    
+
 class AuthorizationError(APIException):
     status_code = 403
-    
+
 class NotFoundError(APIException):
     status_code = 404
 ```
@@ -237,7 +237,7 @@ class NotFoundError(APIException):
 
 #### 环境配置
 - **Development**: 本地开发环境
-- **Testing**: 自动化测试环境  
+- **Testing**: 自动化测试环境
 - **Acceptance**: 用户验收测试环境
 - **Production**: 生产环境
 

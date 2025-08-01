@@ -1,0 +1,89 @@
+version: 2
+updates:
+  # Python dependencies
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+    open-pull-requests-limit: 10
+    reviewers:
+      - "team-leads"
+    assignees:
+      - "maintainers"
+    commit-message:
+      prefix: "deps"
+      prefix-development: "deps-dev"
+      include: "scope"
+    labels:
+      - "dependencies"
+      - "python"
+    ignore:
+      # Ignore major version updates for critical dependencies
+      - dependency-name: "flask"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "sqlalchemy"
+        update-types: ["version-update:semver-major"]
+    groups:
+      # Group Flask ecosystem updates
+      flask-ecosystem:
+        patterns:
+          - "flask*"
+          - "werkzeug"
+          - "jinja2"
+          - "markupsafe"
+      # Group testing dependencies
+      testing-deps:
+        patterns:
+          - "pytest*"
+          - "factory-boy"
+          - "responses"
+      # Group development tools
+      dev-tools:
+        patterns:
+          - "black"
+          - "flake8"
+          - "isort"
+          - "pre-commit"
+
+  # Docker dependencies
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "tuesday"
+      time: "09:00"
+    open-pull-requests-limit: 5
+    reviewers:
+      - "devops-team"
+    commit-message:
+      prefix: "docker"
+    labels:
+      - "dependencies"
+      - "docker"
+
+  # GitHub Actions
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "wednesday"
+      time: "09:00"
+    open-pull-requests-limit: 5
+    reviewers:
+      - "devops-team"
+    commit-message:
+      prefix: "ci"
+    labels:
+      - "dependencies"
+      - "github-actions"
+    groups:
+      # Group related actions
+      docker-actions:
+        patterns:
+          - "docker/*"
+      testing-actions:
+        patterns:
+          - "codecov/*"
+          - "*test*"

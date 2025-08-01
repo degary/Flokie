@@ -1,0 +1,186 @@
+# Deployment Configuration for Flask API Template
+# This file defines deployment settings for different environments
+
+environments:
+  development:
+    name: "Development"
+    url: "https://dev-api.example.com"
+    branch: "main"
+    auto_deploy: true
+    protection_rules:
+      required_reviewers: 0
+      dismiss_stale_reviews: false
+    health_check:
+      endpoint: "/api/health"
+      timeout: 30
+      retries: 3
+    deployment_strategy: "rolling"
+    resources:
+      cpu: "0.5"
+      memory: "512Mi"
+      replicas: 1
+    environment_variables:
+      FLASK_ENV: "development"
+      LOG_LEVEL: "DEBUG"
+      DATABASE_POOL_SIZE: "5"
+    secrets:
+      - DATABASE_URL
+      - JWT_SECRET_KEY
+      - REDIS_URL
+
+  acceptance:
+    name: "Acceptance"
+    url: "https://acc-api.example.com"
+    branch: "main"
+    auto_deploy: true
+    depends_on: ["development"]
+    protection_rules:
+      required_reviewers: 1
+      dismiss_stale_reviews: true
+      required_status_checks:
+        - "ci/tests"
+        - "ci/security-scan"
+    health_check:
+      endpoint: "/api/health"
+      timeout: 60
+      retries: 5
+    deployment_strategy: "blue_green"
+    resources:
+      cpu: "1"
+      memory: "1Gi"
+      replicas: 2
+    environment_variables:
+      FLASK_ENV: "acceptance"
+      LOG_LEVEL: "INFO"
+      DATABASE_POOL_SIZE: "10"
+    secrets:
+      - DATABASE_URL
+      - JWT_SECRET_KEY
+      - REDIS_URL
+      - EXTERNAL_API_KEY
+    post_deployment:
+      tests:
+        - "smoke_tests"
+        - "integration_tests"
+      notifications:
+        - "slack://qa-team"
+
+  production:
+    name: "Production"
+    url: "https://api.example.com"
+    branch: "main"
+    auto_deploy: false
+    depends_on: ["acceptance"]
+    protection_rules:
+      required_reviewers: 2
+      dismiss_stale_reviews: true
+      required_status_checks:
+        - "ci/tests"
+        - "ci/security-scan"
+        - "ci/performance-tests"
+      restrict_pushes: true
+      allowed_users:
+        - "deployment-bot"
+      allowed_teams:
+        - "platform-team"
+    health_check:
+      endpoint: "/api/health"
+      timeout: 120
+      retries: 10
+    deployment_strategy: "canary"
+    canary_settings:
+      initial_percentage: 10
+      increment_percentage: 25
+      increment_interval: "5m"
+      success_threshold: 99.5
+    resources:
+      cpu: "2"
+      memory: "2Gi"
+      replicas: 5
+      autoscaling:
+        min_replicas: 3
+        max_replicas: 20
+        cpu_threshold: 70
+        memory_threshold: 80
+    environment_variables:
+      FLASK_ENV: "production"
+      LOG_LEVEL: "WARNING"
+      DATABASE_POOL_SIZE: "20"
+      CACHE_TTL: "3600"
+    secrets:
+      - DATABASE_URL
+      - JWT_SECRET_KEY
+      - REDIS_URL
+      - EXTERNAL_API_KEY
+      - MONITORING_API_KEY
+      - BACKUP_ENCRYPTION_KEY
+    backup:
+      enabled: true
+      schedule: "0 2 * * *"
+      retention_days: 30
+    monitoring:
+      enabled: true
+      alerts:
+        - type: "error_rate"
+          threshold: 1
+          duration: "5m"
+        - type: "response_time"
+          threshold: 2000
+          duration: "10m"
+        - type: "availability"
+          threshold: 99
+          duration: "15m"
+    post_deployment:
+      tests:
+        - "smoke_tests"
+        - "integration_tests"
+        - "performance_tests"
+      monitoring_duration: "30m"
+      notifications:
+        - "slack://platform-team"
+        - "email://ops-team@example.com"
+        - "pagerduty://production-alerts"
+
+# Global deployment settings
+global:
+  docker:
+    registry: "ghcr.io"
+    image_name: "flask-api-template"
+    build_args:
+      PYTHON_VERSION: "3.11"
+      BUILD_DATE: "{{ .Date }}"
+      VERSION: "{{ .Version }}"
+      COMMIT_SHA: "{{ .CommitSHA }}"
+
+  security:
+    vulnerability_scan: true
+    compliance_check: true
+    secret_scanning: true
+
+  notifications:
+    slack:
+      webhook_url_secret: "SLACK_WEBHOOK_URL"
+      channels:
+        success: "#deployments"
+        failure: "#alerts"
+    email:
+      smtp_server: "smtp.example.com"
+      from_address: "deployments@example.com"
+
+  rollback:
+    enabled: true
+    automatic_triggers:
+      - "health_check_failure"
+      - "error_rate_threshold"
+    manual_approval_required: true
+    retention_count: 5
+
+  maintenance:
+    window:
+      start: "02:00"
+      end: "04:00"
+      timezone: "UTC"
+      days: ["sunday"]
+    notifications:
+      advance_notice: "24h"
+      channels: ["#maintenance", "#general"]

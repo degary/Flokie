@@ -1,0 +1,63 @@
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    environment:
+      - FLASK_CONFIG=testing
+      - DATABASE_URL=postgresql://flask_user:test_password@db:5432/flask_test
+      - REDIS_URL=redis://redis:6379/1
+    command: python -m pytest tests/ -v --cov=app --cov-report=html --cov-report=term
+    volumes:
+      - .:/app
+      - /app/__pycache__
+      - test_coverage:/app/htmlcov
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - flask-test-network
+
+  db:
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_DB=flask_test
+      - POSTGRES_USER=flask_user
+      - POSTGRES_PASSWORD=test_password
+    volumes:
+      - postgres_test_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U flask_user -d flask_test"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - flask-test-network
+
+  redis:
+    image: redis:7-alpine
+    volumes:
+      - redis_test_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - flask-test-network
+
+networks:
+  flask-test-network:
+    driver: bridge
+
+volumes:
+  postgres_test_data:
+    driver: local
+  redis_test_data:
+    driver: local
+  test_coverage:
+    driver: local

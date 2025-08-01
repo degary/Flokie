@@ -1,0 +1,101 @@
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+    ports:
+      - "5000:5000"
+    environment:
+      - FLASK_CONFIG=acceptance
+      - DATABASE_URL=postgresql://flask_user:${POSTGRES_PASSWORD}@db:5432/flask_acc
+      - REDIS_URL=redis://redis:6379/0
+      - SECRET_KEY=${SECRET_KEY}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
+    volumes:
+      - app_acc_logs:/app/logs
+      - app_acc_instance:/app/instance
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+        reservations:
+          cpus: '0.25'
+          memory: 128M
+    networks:
+      - flask-acc-network
+
+  db:
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_DB=flask_acc
+      - POSTGRES_USER=flask_user
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+    volumes:
+      - postgres_acc_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U flask_user -d flask_acc"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+    networks:
+      - flask-acc-network
+
+  redis:
+    image: redis:7-alpine
+    volumes:
+      - redis_acc_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 128M
+        reservations:
+          cpus: '0.1'
+          memory: 64M
+    networks:
+      - flask-acc-network
+
+networks:
+  flask-acc-network:
+    driver: bridge
+
+volumes:
+  postgres_acc_data:
+    driver: local
+  redis_acc_data:
+    driver: local
+  app_acc_logs:
+    driver: local
+  app_acc_instance:
+    driver: local

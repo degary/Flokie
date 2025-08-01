@@ -1,0 +1,403 @@
+name: Release Management
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release (e.g., v1.2.3)'
+        required: true
+        type: string
+      release_type:
+        description: 'Type of release'
+        required: true
+        default: 'minor'
+        type: choice
+        options:
+        - patch
+        - minor
+        - major
+      pre_release:
+        description: 'Mark as pre-release'
+        required: false
+        default: false
+        type: boolean
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  # Validate release
+  validate-release:
+    name: Validate Release
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Determine version
+      id: version
+      run: |
+        if [ "${{ github.event_name }}" == "push" ]; then
+          VERSION=${GITHUB_REF#refs/tags/}
+        else
+          VERSION="${{ github.event.inputs.version }}"
+        fi
+
+        # Validate version format
+        if [[ ! "$VERSION" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9]+)?$ ]]; then
+          echo "❌ Invalid version format: $VERSION"
+          echo "Expected format: v1.2.3 or v1.2.3-beta"
+          exit 1
+        fi
+
+        echo "version=$VERSION" >> $GITHUB_OUTPUT
+        echo "✅ Version: $VERSION"
+
+    - name: Check if tag exists
+      run: |
+        VERSION="${{ steps.version.outputs.version }}"
+        if git tag -l | grep -q "^$VERSION$"; then
+          echo "✅ Tag $VERSION exists"
+        else
+          echo "⚠️ Tag $VERSION does not exist - will be created"
+        fi
+
+    - name: Validate changelog
+      run: |
+        if [ -f "CHANGELOG.md" ]; then
+          VERSION="${{ steps.version.outputs.version }}"
+          if grep -q "$VERSION" CHANGELOG.md; then
+            echo "✅ Changelog entry found for $VERSION"
+          else
+            echo "⚠️ No changelog entry found for $VERSION"
+          fi
+        else
+          echo "⚠️ CHANGELOG.md not found"
+        fi
+
+  # Run comprehensive tests
+  comprehensive-tests:
+    name: Comprehensive Tests
+    runs-on: ubuntu-latest
+    needs: [validate-release]
+
+    strategy:
+      matrix:
+        python-version: ['3.9', '3.10', '3.11']
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python-version }}
+        cache: 'pip'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements/testing.txt
+
+    - name: Run full test suite
+      run: |
+        pytest tests/ -v --cov=app --cov-report=xml --cov-report=term-missing
+
+    - name: Upload coverage
+      uses: codecov/codecov-action@v3
+      with:
+        file: ./coverage.xml
+        flags: release-tests
+        name: release-${{ matrix.python-version }}
+
+  # Build release artifacts
+  build-release:
+    name: Build Release Artifacts
+    runs-on: ubuntu-latest
+    needs: [validate-release, comprehensive-tests]
+    outputs:
+      image-tag: ${{ steps.meta.outputs.tags }}
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Log in to Container Registry
+      uses: docker/login-action@v3
+      with:
+        registry: ${{ env.REGISTRY }}
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Extract metadata
+      id: meta
+      uses: docker/metadata-action@v5
+      with:
+        images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+        tags: |
+          type=semver,pattern={{version}},value=${{ needs.validate-release.outputs.version }}
+          type=semver,pattern={{major}}.{{minor}},value=${{ needs.validate-release.outputs.version }}
+          type=semver,pattern={{major}},value=${{ needs.validate-release.outputs.version }}
+          type=raw,value=stable,enable={{is_default_branch}}
+
+    - name: Build and push release image
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        push: true
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+        platforms: linux/amd64,linux/arm64
+
+    - name: Generate SBOM
+      uses: anchore/sbom-action@v0
+      with:
+        image: ${{ steps.meta.outputs.tags }}
+        format: spdx-json
+        output-file: sbom.spdx.json
+
+    - name: Upload SBOM
+      uses: actions/upload-artifact@v3
+      with:
+        name: sbom
+        path: sbom.spdx.json
+
+  # Security scan for release
+  security-scan:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    needs: [build-release]
+
+    steps:
+    - name: Run Trivy vulnerability scanner
+      uses: aquasecurity/trivy-action@master
+      with:
+        image-ref: ${{ needs.build-release.outputs.image-tag }}
+        format: 'sarif'
+        output: 'trivy-results.sarif'
+
+    - name: Upload Trivy scan results
+      uses: github/codeql-action/upload-sarif@v2
+      with:
+        sarif_file: 'trivy-results.sarif'
+
+    - name: Check for critical vulnerabilities
+      run: |
+        # Parse SARIF and check for critical vulnerabilities
+        CRITICAL_COUNT=$(jq '.runs[0].results | map(select(.level == "error")) | length' trivy-results.sarif)
+
+        if [ "$CRITICAL_COUNT" -gt 0 ]; then
+          echo "❌ Found $CRITICAL_COUNT critical vulnerabilities"
+          echo "Release blocked due to security issues"
+          exit 1
+        else
+          echo "✅ No critical vulnerabilities found"
+        fi
+
+  # Create GitHub release
+  create-release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+    needs: [validate-release, comprehensive-tests, build-release, security-scan]
+    outputs:
+      release-id: ${{ steps.create-release.outputs.id }}
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Generate release notes
+      id: release-notes
+      run: |
+        VERSION="${{ needs.validate-release.outputs.version }}"
+
+        # Get previous tag
+        PREVIOUS_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+
+        echo "# Release $VERSION" > release-notes.md
+        echo "" >> release-notes.md
+
+        if [ -n "$PREVIOUS_TAG" ]; then
+          echo "## Changes since $PREVIOUS_TAG" >> release-notes.md
+          echo "" >> release-notes.md
+
+          # Generate changelog from commits
+          git log --pretty=format:"- %s (%h)" $PREVIOUS_TAG..HEAD >> release-notes.md
+          echo "" >> release-notes.md
+        fi
+
+        echo "" >> release-notes.md
+        echo "## Docker Images" >> release-notes.md
+        echo "- \`${{ needs.build-release.outputs.image-tag }}\`" >> release-notes.md
+        echo "" >> release-notes.md
+
+        echo "## Verification" >> release-notes.md
+        echo "- ✅ All tests passed" >> release-notes.md
+        echo "- ✅ Security scan completed" >> release-notes.md
+        echo "- ✅ Multi-platform build successful" >> release-notes.md
+
+        cat release-notes.md
+
+    - name: Create release
+      id: create-release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ needs.validate-release.outputs.version }}
+        release_name: Release ${{ needs.validate-release.outputs.version }}
+        body_path: release-notes.md
+        draft: false
+        prerelease: ${{ github.event.inputs.pre_release == 'true' }}
+
+    - name: Download SBOM
+      uses: actions/download-artifact@v3
+      with:
+        name: sbom
+
+    - name: Upload SBOM to release
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create-release.outputs.upload_url }}
+        asset_path: ./sbom.spdx.json
+        asset_name: sbom.spdx.json
+        asset_content_type: application/json
+
+  # Deploy release to production
+  deploy-release:
+    name: Deploy Release to Production
+    runs-on: ubuntu-latest
+    needs: [create-release, build-release]
+    environment:
+      name: production
+      url: https://api.example.com
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Deploy to production
+      run: |
+        echo "🚀 Deploying release ${{ needs.validate-release.outputs.version }} to production"
+        echo "Image: ${{ needs.build-release.outputs.image-tag }}"
+
+        # Production deployment with zero-downtime strategy
+        echo "Executing zero-downtime deployment..."
+
+        # This would typically involve:
+        # 1. Health check current production
+        # 2. Deploy new version alongside current
+        # 3. Run smoke tests on new version
+        # 4. Switch traffic to new version
+        # 5. Monitor and verify
+        # 6. Remove old version
+
+        echo "✅ Production deployment completed"
+
+    - name: Post-deployment verification
+      run: |
+        echo "🔍 Running post-deployment verification"
+
+        # Comprehensive verification
+        sleep 30
+
+        # Check all critical endpoints
+        echo "Verifying critical functionality..."
+
+        # Monitor for 10 minutes
+        for i in {1..10}; do
+          echo "Minute $i: System stable"
+          sleep 60
+        done
+
+        echo "✅ Release verification completed"
+
+  # Notify stakeholders
+  notify-release:
+    name: Notify Release
+    runs-on: ubuntu-latest
+    needs: [validate-release, create-release, deploy-release]
+    if: always()
+
+    steps:
+    - name: Send release notification
+      run: |
+        VERSION="${{ needs.validate-release.outputs.version }}"
+        RELEASE_URL="https://github.com/${{ github.repository }}/releases/tag/$VERSION"
+
+        if [[ "${{ needs.deploy-release.result }}" == "success" ]]; then
+          echo "🎉 Release $VERSION deployed successfully!"
+          echo "Release URL: $RELEASE_URL"
+
+          # Send success notification to:
+          # - Slack/Teams channels
+          # - Email lists
+          # - Status page
+          # - Documentation sites
+
+        else
+          echo "❌ Release $VERSION deployment failed"
+          echo "Release URL: $RELEASE_URL"
+
+          # Send failure notification
+          # Include rollback instructions
+        fi
+
+  # Update documentation
+  update-docs:
+    name: Update Documentation
+    runs-on: ubuntu-latest
+    needs: [deploy-release]
+    if: needs.deploy-release.result == 'success'
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Update version in documentation
+      run: |
+        VERSION="${{ needs.validate-release.outputs.version }}"
+
+        # Update version references in documentation
+        if [ -f "docs/api-reference.md" ]; then
+          sed -i "s/Version: v[0-9]\+\.[0-9]\+\.[0-9]\+/Version: $VERSION/g" docs/api-reference.md
+        fi
+
+        # Update README if needed
+        if [ -f "README.md" ]; then
+          sed -i "s/Current version: v[0-9]\+\.[0-9]\+\.[0-9]\+/Current version: $VERSION/g" README.md
+        fi
+
+        echo "✅ Documentation updated"
+
+    - name: Commit documentation updates
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+
+        if git diff --quiet; then
+          echo "No documentation changes to commit"
+        else
+          git add .
+          git commit -m "docs: update version references to ${{ needs.validate-release.outputs.version }}"
+          git push
+        fi

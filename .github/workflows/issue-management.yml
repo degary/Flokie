@@ -1,0 +1,118 @@
+name: Issue Management
+
+on:
+  issues:
+    types: [opened, labeled, assigned]
+  issue_comment:
+    types: [created]
+  schedule:
+    # Run daily to check stale issues
+    - cron: '0 8 * * *'
+
+jobs:
+  # Auto-label issues based on content
+  auto-label:
+    name: Auto Label Issues
+    runs-on: ubuntu-latest
+    if: github.event_name == 'issues' && github.event.action == 'opened'
+
+    steps:
+    - name: Label bug reports
+      if: contains(github.event.issue.title, 'bug') || contains(github.event.issue.body, 'bug')
+      uses: actions/github-script@v6
+      with:
+        script: |
+          github.rest.issues.addLabels({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            labels: ['bug', 'needs-triage']
+          })
+
+    - name: Label feature requests
+      if: contains(github.event.issue.title, 'feature') || contains(github.event.issue.body, 'feature request')
+      uses: actions/github-script@v6
+      with:
+        script: |
+          github.rest.issues.addLabels({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            labels: ['enhancement', 'needs-triage']
+          })
+
+    - name: Label security issues
+      if: contains(github.event.issue.title, 'security') || contains(github.event.issue.body, 'security')
+      uses: actions/github-script@v6
+      with:
+        script: |
+          github.rest.issues.addLabels({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            labels: ['security', 'priority-high']
+          })
+
+  # Manage stale issues
+  stale-issues:
+    name: Manage Stale Issues
+    runs-on: ubuntu-latest
+    if: github.event_name == 'schedule'
+
+    steps:
+    - name: Mark stale issues
+      uses: actions/stale@v8
+      with:
+        repo-token: ${{ secrets.GITHUB_TOKEN }}
+        stale-issue-message: |
+          This issue has been automatically marked as stale because it has not had recent activity.
+          It will be closed if no further activity occurs. Thank you for your contributions.
+        close-issue-message: |
+          This issue has been automatically closed due to inactivity.
+          If you believe this issue is still relevant, please reopen it.
+        stale-issue-label: 'stale'
+        days-before-stale: 60
+        days-before-close: 7
+        exempt-issue-labels: 'pinned,security,priority-high'
+
+  # Welcome new contributors
+  welcome:
+    name: Welcome New Contributors
+    runs-on: ubuntu-latest
+    if: github.event_name == 'issues' && github.event.action == 'opened'
+
+    steps:
+    - name: Check if first-time contributor
+      uses: actions/github-script@v6
+      with:
+        script: |
+          const { data: issues } = await github.rest.issues.listForRepo({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            creator: context.payload.issue.user.login,
+            state: 'all'
+          });
+
+          if (issues.length === 1) {
+            await github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `👋 Welcome to the Flask API Template project! Thank you for opening your first issue.
+
+              To help us assist you better, please make sure your issue includes:
+              - A clear description of the problem or feature request
+              - Steps to reproduce (for bugs)
+              - Expected vs actual behavior
+              - Environment details (Python version, OS, etc.)
+
+              Our team will review your issue and respond as soon as possible.`
+            });
+
+            await github.rest.issues.addLabels({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              labels: ['first-time-contributor']
+            });
+          }
