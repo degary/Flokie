@@ -109,7 +109,7 @@ jobs:
         output: 'trivy-report.json'
 
     - name: Run Grype vulnerability scanner
-      uses: anchore/scan-action@v3
+      uses: anchore/scan-action@v6
       with:
         image: 'flask-api-template:security-scan'
         output-format: json
