@@ -80,7 +80,10 @@ class IntegrationTestConfig(TestConfig):
         os.close(db_fd)
         return f"sqlite:///{db_path}"
 
-    SQLALCHEMY_DATABASE_URI = get_db_uri()
+    @property
+    def SQLALCHEMY_DATABASE_URI(self):
+        """Get database URI for integration tests."""
+        return self.get_db_uri()
 
     # Enable more detailed logging for integration tests
     LOG_LEVEL = "INFO"

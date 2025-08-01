@@ -6,13 +6,23 @@ error handling, and schema processing.
 """
 
 import logging
+import re
 from functools import wraps
 from typing import Any, Callable, Dict, Optional, Type
 
+import jsonschema
 from flask import jsonify, request
 from marshmallow import ValidationError
 
 logger = logging.getLogger(__name__)
+
+# Email validation regex - more strict
+EMAIL_REGEX = re.compile(
+    r"^[a-zA-Z0-9]([a-zA-Z0-9._+%-]*[a-zA-Z0-9])?@[a-zA-Z0-9]([a-zA-Z0-9.-]*[a-zA-Z0-9])?\.[a-zA-Z]{2,}$"
+)
+
+# Username validation regex
+USERNAME_REGEX = re.compile(r"^[a-zA-Z0-9_-]{3,50}$")
 
 
 def validate_json(schema_class: Type, location: str = "json") -> Callable:
@@ -416,3 +426,259 @@ class ValidationMixin:
         """
         response = create_error_response(error_message, error_code, details)
         return response, status_code
+
+
+# Individual validation functions
+def is_valid_email(email: str) -> bool:
+    """
+    Check if email format is valid.
+
+    Args:
+        email: Email address to validate
+
+    Returns:
+        True if email is valid, False otherwise
+    """
+    if not email or not isinstance(email, str):
+        return False
+
+    email = email.strip()
+
+    # Check for basic format
+    if not EMAIL_REGEX.match(email):
+        return False
+
+    # Additional checks for edge cases
+    local_part, domain = email.split("@", 1)
+
+    # Check for consecutive dots in local part
+    if ".." in local_part:
+        return False
+
+    # Check for consecutive dots in domain
+    if ".." in domain:
+        return False
+
+    # Check for leading/trailing dots in local part
+    if local_part.startswith(".") or local_part.endswith("."):
+        return False
+
+    return True
+
+
+def is_valid_username(username: str) -> bool:
+    """
+    Check if username format is valid.
+
+    Args:
+        username: Username to validate
+
+    Returns:
+        True if username is valid, False otherwise
+    """
+    if not username or not isinstance(username, str):
+        return False
+
+    username = username.strip()
+
+    # Check basic format
+    if not USERNAME_REGEX.match(username):
+        return False
+
+    # Don't allow usernames that are only numbers
+    if username.isdigit():
+        return False
+
+    return True
+
+
+def validate_email(email: str, custom_message: str = None) -> None:
+    """
+    Validate email format and raise exception if invalid.
+
+    Args:
+        email: Email address to validate
+        custom_message: Custom error message
+
+    Raises:
+        ValidationError: If email is invalid
+    """
+    if not is_valid_email(email):
+        message = custom_message or "Invalid email format"
+        raise ValidationError(
+            message=message, details={"field_errors": {"email": message}}
+        )
+
+
+def validate_username(username: str, custom_message: str = None) -> None:
+    """
+    Validate username format and raise exception if invalid.
+
+    Args:
+        username: Username to validate
+        custom_message: Custom error message
+
+    Raises:
+        ValidationError: If username is invalid
+    """
+    if not is_valid_username(username):
+        message = (
+            custom_message
+            or "Username must be 3-50 characters long and contain only letters, numbers, underscores, and hyphens"
+        )
+        raise ValidationError(
+            message=message, details={"field_errors": {"username": message}}
+        )
+
+
+def validate_password(password: str, custom_message: str = None) -> None:
+    """
+    Validate password format and raise exception if invalid.
+
+    Args:
+        password: Password to validate
+        custom_message: Custom error message
+
+    Raises:
+        ValidationError: If password is invalid
+    """
+    if not password or not isinstance(password, str):
+        message = custom_message or "Password is required"
+        raise ValidationError(
+            message=message, details={"field_errors": {"password": message}}
+        )
+
+    password = password.strip()
+    if len(password) < 8:
+        message = custom_message or "Password must be at least 8 characters long"
+        raise ValidationError(
+            message=message, details={"field_errors": {"password": message}}
+        )
+
+    if len(password) > 128:
+        message = custom_message or "Password cannot exceed 128 characters"
+        raise ValidationError(
+            message=message, details={"field_errors": {"password": message}}
+        )
+
+
+def validate_required_fields(data: Dict[str, Any], required_fields: list) -> None:
+    """
+    Validate that all required fields are present and not empty.
+
+    Args:
+        data: Data dictionary to validate
+        required_fields: List of required field names
+
+    Raises:
+        ValidationError: If any required fields are missing or empty
+    """
+    field_errors = {}
+
+    for field in required_fields:
+        if field not in data:
+            field_errors[field] = f"{field} is required"
+        elif data[field] is None:
+            field_errors[field] = f"{field} cannot be null"
+        elif isinstance(data[field], str) and not data[field].strip():
+            field_errors[field] = f"{field} cannot be empty"
+
+    if field_errors:
+        raise ValidationError(
+            message="Required fields are missing or empty",
+            details={"field_errors": field_errors},
+        )
+
+
+def validate_field_length(
+    data: Dict[str, Any], constraints: Dict[str, Dict[str, int]]
+) -> None:
+    """
+    Validate field lengths against constraints.
+
+    Args:
+        data: Data dictionary to validate
+        constraints: Dictionary of field constraints with min/max lengths
+
+    Raises:
+        ValidationError: If any fields violate length constraints
+    """
+    field_errors = {}
+
+    for field, constraint in constraints.items():
+        if field not in data:
+            continue  # Skip missing fields (handled by required validation)
+
+        value = data[field]
+        if not isinstance(value, str):
+            continue
+
+        min_length = constraint.get("min", 0)
+        max_length = constraint.get("max", float("inf"))
+
+        if len(value) < min_length:
+            field_errors[
+                field
+            ] = f"{field} must be at least {min_length} characters long"
+        elif len(value) > max_length:
+            field_errors[
+                field
+            ] = f"{field} must be no more than {max_length} characters long"
+
+    if field_errors:
+        raise ValidationError(
+            message="Field length validation failed",
+            details={"field_errors": field_errors},
+        )
+
+
+def sanitize_input(input_value: Any) -> str:
+    """
+    Sanitize input by removing HTML tags and normalizing whitespace.
+
+    Args:
+        input_value: Input value to sanitize
+
+    Returns:
+        Sanitized string
+    """
+    if input_value is None:
+        return ""
+
+    if not isinstance(input_value, str):
+        input_value = str(input_value)
+
+    # Remove HTML tags
+    import re
+
+    html_tag_regex = re.compile(r"<[^>]+>")
+    sanitized = html_tag_regex.sub("", input_value)
+
+    # Normalize whitespace
+    sanitized = re.sub(r"\s+", " ", sanitized.strip())
+
+    return sanitized
+
+
+def validate_json_schema(data: Dict[str, Any], schema: Dict[str, Any]) -> None:
+    """
+    Validate data against JSON schema.
+
+    Args:
+        data: Data to validate
+        schema: JSON schema to validate against
+
+    Raises:
+        ValidationError: If data doesn't match schema
+    """
+    try:
+        jsonschema.validate(data, schema)
+    except jsonschema.ValidationError as e:
+        raise ValidationError(
+            message=f"Schema validation failed: {e.message}",
+            details={"schema_error": str(e)},
+        )
+    except jsonschema.SchemaError as e:
+        raise ValidationError(
+            message=f"Invalid schema: {e.message}", details={"schema_error": str(e)}
+        )

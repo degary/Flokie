@@ -24,6 +24,7 @@ class TestUserModel:
         """Test basic user creation."""
         with app.app_context():
             user = User(username="testuser", email="test@example.com")
+            user.set_password("testpassword123")
 
             assert user.username == "testuser"
             assert user.email == "test@example.com"
@@ -36,6 +37,7 @@ class TestUserModel:
         """Test user creation with optional fields."""
         with app.app_context():
             user = User(username="testuser", email="test@example.com", is_active=False)
+            user.set_password("testpassword123")
 
             assert user.is_active is False
 
@@ -260,6 +262,7 @@ class TestUserModel:
         """Test that updated_at changes when user is modified."""
         with app.app_context():
             user = User(username="testuser", email="test@example.com")
+            user.set_password("testpassword123")
             db.session.add(user)
             db.session.commit()
 
