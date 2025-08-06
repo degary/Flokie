@@ -168,7 +168,7 @@ jobs:
 
     steps:
     - name: Download all reports
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v5
 
     - name: Create security summary
       run: |
