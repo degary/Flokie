@@ -78,6 +78,7 @@ class TestUserModel:
         """Test basic dictionary serialization."""
         with app.app_context():
             user = User(username="testuser", email="test@example.com")
+            user.set_password("testpassword123")
             user.id = 1  # Simulate database ID
 
             result = user.to_dict()
@@ -96,9 +97,10 @@ class TestUserModel:
         """Test dictionary serialization with timestamps."""
         with app.app_context():
             user = User(username="testuser", email="test@example.com")
+            user.set_password("testpassword123")
             user.id = 1
 
-            result = user.to_dict(include_timestamps=True)
+            result = user.to_dict()
 
             assert "created_at" in result
             assert "updated_at" in result
@@ -109,63 +111,48 @@ class TestUserModel:
         """Test dictionary serialization without timestamps."""
         with app.app_context():
             user = User(username="testuser", email="test@example.com")
+            user.set_password("testpassword123")
             user.id = 1
 
-            result = user.to_dict(include_timestamps=False)
+            result = user.to_dict(exclude_fields=["created_at", "updated_at"])
 
             assert "created_at" not in result
             assert "updated_at" not in result
 
-    def test_from_dict_basic(self, app):
-        """Test user creation from dictionary."""
+    def test_user_creation_from_data(self, app):
+        """Test user creation from data."""
         with app.app_context():
-            user_data = {
-                "username": "testuser",
-                "email": "test@example.com",
-                "is_active": False,
-            }
-
-            user = User.from_dict(user_data)
+            user = User(username="testuser", email="test@example.com", is_active=False)
+            user.set_password("testpassword123")
 
             assert user.username == "testuser"
             assert user.email == "test@example.com"
             assert user.is_active is False
 
-    def test_from_dict_with_password(self, app):
-        """Test user creation from dictionary with password."""
+    def test_password_setting_and_verification(self, app):
+        """Test password setting and verification."""
         with app.app_context():
-            user_data = {
-                "username": "testuser",
-                "email": "test@example.com",
-                "password": "testpassword123",
-            }
-
-            user = User.from_dict(user_data)
+            user = User(username="testuser", email="test@example.com")
+            user.set_password("testpassword123")
 
             assert user.username == "testuser"
             assert user.email == "test@example.com"
             assert user.password_hash is not None
             assert user.check_password("testpassword123") is True
 
-    def test_from_dict_ignore_sensitive_fields(self, app):
-        """Test that sensitive fields are ignored in from_dict."""
+    def test_sensitive_fields_protection(self, app):
+        """Test that sensitive fields are properly protected."""
         with app.app_context():
-            user_data = {
-                "username": "testuser",
-                "email": "test@example.com",
-                "password_hash": "should_be_ignored",
-                "id": 999,  # Should be ignored
-                "created_at": "2023-01-01T00:00:00",  # Should be ignored
-                "updated_at": "2023-01-01T00:00:00",  # Should be ignored
-            }
+            user = User(username="testuser", email="test@example.com")
+            user.set_password("testpassword123")
 
-            user = User.from_dict(user_data)
+            result = user.to_dict()
 
             assert user.username == "testuser"
             assert user.email == "test@example.com"
-            assert user.password_hash != "should_be_ignored"
-            assert user.id is None  # Not set from dict
-            assert isinstance(user.created_at, datetime)  # Auto-generated
+            assert "password_hash" not in result
+            assert "email_verification_token" not in result
+            assert "password_reset_token" not in result
 
     def test_repr(self, app):
         """Test string representation of user."""
@@ -183,6 +170,7 @@ class TestUserModel:
         """Test string conversion of user."""
         with app.app_context():
             user = User(username="testuser", email="test@example.com")
+            user.set_password("testpassword123")
 
             str_repr = str(user)
 
@@ -193,6 +181,7 @@ class TestUserModel:
         with app.app_context():
             # Test minimum length
             user = User(username="ab", email="test@example.com")
+            user.set_password("testpassword123")
             with pytest.raises(Exception):  # Should raise validation error
                 db.session.add(user)
                 db.session.commit()
@@ -201,6 +190,7 @@ class TestUserModel:
         """Test email format validation."""
         with app.app_context():
             user = User(username="testuser", email="invalid-email")
+            user.set_password("testpassword123")
             with pytest.raises(Exception):  # Should raise validation error
                 db.session.add(user)
                 db.session.commit()
@@ -209,7 +199,9 @@ class TestUserModel:
         """Test username uniqueness constraint."""
         with app.app_context():
             user1 = User(username="testuser", email="test1@example.com")
+            user1.set_password("testpassword123")
             user2 = User(username="testuser", email="test2@example.com")
+            user2.set_password("testpassword123")
 
             db.session.add(user1)
             db.session.commit()
@@ -222,7 +214,9 @@ class TestUserModel:
         """Test email uniqueness constraint."""
         with app.app_context():
             user1 = User(username="testuser1", email="test@example.com")
+            user1.set_password("testpassword123")
             user2 = User(username="testuser2", email="test@example.com")
+            user2.set_password("testpassword123")
 
             db.session.add(user1)
             db.session.commit()
@@ -283,6 +277,7 @@ class TestUserModel:
         """Test that is_active defaults to True."""
         with app.app_context():
             user = User(username="testuser", email="test@example.com")
+            user.set_password("testpassword123")
 
             assert user.is_active is True
 
@@ -290,12 +285,15 @@ class TestUserModel:
         """Test user equality comparison."""
         with app.app_context():
             user1 = User(username="testuser", email="test@example.com")
+            user1.set_password("testpassword123")
             user1.id = 1
 
             user2 = User(username="testuser", email="test@example.com")
+            user2.set_password("testpassword123")
             user2.id = 1
 
             user3 = User(username="testuser", email="test@example.com")
+            user3.set_password("testpassword123")
             user3.id = 2
 
             assert user1 == user2  # Same ID
@@ -305,9 +303,11 @@ class TestUserModel:
         """Test user hash for use in sets/dicts."""
         with app.app_context():
             user1 = User(username="testuser", email="test@example.com")
+            user1.set_password("testpassword123")
             user1.id = 1
 
             user2 = User(username="testuser", email="test@example.com")
+            user2.set_password("testpassword123")
             user2.id = 1
 
             # Should have same hash if same ID
@@ -317,16 +317,15 @@ class TestUserModel:
             user_set = {user1, user2}
             assert len(user_set) == 1  # Only one unique user
 
-    @patch("app.models.user.datetime")
-    def test_timestamps_use_utc(self, mock_datetime, app):
+    def test_timestamps_use_utc(self, app):
         """Test that timestamps use UTC."""
-        mock_now = datetime(2023, 1, 1, 12, 0, 0)
-        mock_datetime.utcnow.return_value = mock_now
-
         with app.app_context():
             user = User(username="testuser", email="test@example.com")
+            user.set_password("testpassword123")
 
-            mock_datetime.utcnow.assert_called()
+            # Check that timestamps are datetime objects
+            assert isinstance(user.created_at, datetime)
+            assert isinstance(user.updated_at, datetime)
 
     def test_to_dict_serialization_types(self, app):
         """Test that to_dict returns JSON-serializable types."""

@@ -12,7 +12,9 @@ from typing import Any, Callable, Dict, Optional, Type
 
 import jsonschema
 from flask import jsonify, request
-from marshmallow import ValidationError
+from marshmallow import ValidationError as MarshmallowValidationError
+
+from app.utils.exceptions import ValidationError
 
 logger = logging.getLogger(__name__)
 
@@ -61,7 +63,7 @@ def validate_json(schema_class: Type, location: str = "json") -> Callable:
 
                 return f(*args, **kwargs)
 
-            except ValidationError as e:
+            except MarshmallowValidationError as e:
                 logger.warning(f"Validation error in {f.__name__}: {e.messages}")
                 return (
                     jsonify(
@@ -122,7 +124,7 @@ def serialize_response(
         return schema.dump(data, many=many)
     except Exception as e:
         logger.error(f"Serialization error: {e}")
-        raise ValidationError(f"Failed to serialize response: {str(e)}")
+        raise MarshmallowValidationError(f"Failed to serialize response: {str(e)}")
 
 
 def handle_validation_error(error: ValidationError) -> tuple:
@@ -165,13 +167,13 @@ def validate_pagination_params(
 
     # Validate page
     if page < 1:
-        raise ValidationError("Page must be at least 1")
+        raise MarshmallowValidationError("Page must be at least 1")
 
     # Validate per_page
     if per_page < 1:
-        raise ValidationError("Per page must be at least 1")
+        raise MarshmallowValidationError("Per page must be at least 1")
     if per_page > 100:
-        raise ValidationError("Per page cannot exceed 100")
+        raise MarshmallowValidationError("Per page cannot exceed 100")
 
     return {"page": page, "per_page": per_page}
 
@@ -206,13 +208,13 @@ def validate_sort_params(
         "last_name",
     ]
     if sort_by not in valid_sort_fields:
-        raise ValidationError(
+        raise MarshmallowValidationError(
             f"Invalid sort field. Must be one of: {', '.join(valid_sort_fields)}"
         )
 
     # Validate sort_order
     if sort_order not in ["asc", "desc"]:
-        raise ValidationError("Sort order must be 'asc' or 'desc'")
+        raise MarshmallowValidationError("Sort order must be 'asc' or 'desc'")
 
     return {"sort_by": sort_by, "sort_order": sort_order}
 
@@ -239,9 +241,9 @@ def sanitize_search_term(search_term: Optional[str]) -> Optional[str]:
 
     # Validate length
     if len(search_term) < 2:
-        raise ValidationError("Search term must be at least 2 characters")
+        raise MarshmallowValidationError("Search term must be at least 2 characters")
     if len(search_term) > 100:
-        raise ValidationError("Search term cannot exceed 100 characters")
+        raise MarshmallowValidationError("Search term cannot exceed 100 characters")
 
     # Remove potentially dangerous characters for SQL injection prevention
     # This is a basic sanitization - the ORM should handle SQL injection prevention
@@ -269,10 +271,12 @@ def validate_id_parameter(id_value: Any, parameter_name: str = "id") -> int:
     try:
         id_int = int(id_value)
         if id_int < 1:
-            raise ValidationError(f"{parameter_name} must be a positive integer")
+            raise MarshmallowValidationError(
+                f"{parameter_name} must be a positive integer"
+            )
         return id_int
     except (ValueError, TypeError):
-        raise ValidationError(f"{parameter_name} must be a valid integer")
+        raise MarshmallowValidationError(f"{parameter_name} must be a valid integer")
 
 
 def create_success_response(data: Any = None, message: str = None) -> Dict[str, Any]:
