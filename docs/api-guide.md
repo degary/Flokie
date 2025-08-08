@@ -1,41 +1,94 @@
-# API 使用指南
+# 📚 Flokie API Guide
 
-本指南提供了 Flask API Template 的详细 API 使用说明和示例。
+This comprehensive guide provides detailed API documentation, examples, and best practices for using the Flokie Flask API Template.
 
-## 目录
+## 📋 Table of Contents
 
-- [认证流程](#认证流程)
-- [API 端点详解](#api-端点详解)
-- [错误处理](#错误处理)
-- [最佳实践](#最佳实践)
-- [SDK 和工具](#sdk-和工具)
+- [🚀 Getting Started](#-getting-started)
+- [🔐 Authentication](#-authentication)
+- [📖 API Endpoints](#-api-endpoints)
+- [❌ Error Handling](#-error-handling)
+- [🛠️ Best Practices](#️-best-practices)
+- [🔧 SDKs and Tools](#-sdks-and-tools)
+- [📝 Examples](#-examples)
 
-## 认证流程
+## 🚀 Getting Started
 
-### JWT 认证机制
+### Base URL
 
-本 API 使用 JWT (JSON Web Token) 进行身份认证。认证流程如下：
+```
+http://localhost:5000/api
+```
 
-1. **用户注册/登录** → 获取访问令牌和刷新令牌
-2. **API 调用** → 在请求头中包含访问令牌
-3. **令牌刷新** → 使用刷新令牌获取新的访问令牌
+### Interactive Documentation
 
-### 令牌类型
+Once your API is running, you can access the interactive documentation:
 
-- **访问令牌 (Access Token)**: 用于 API 调用，有效期较短（默认 15 分钟）
-- **刷新令牌 (Refresh Token)**: 用于获取新的访问令牌，有效期较长（默认 30 天）
+- **Swagger UI**: http://localhost:5000/docs
+- **Health Check**: http://localhost:5000/api/health
 
-## API 端点详解
+### Quick Test
 
-### 认证 API
-
-#### 用户注册
-
-**端点**: `POST /api/auth/register`
-
-**请求示例**:
 ```bash
-curl -X POST http://localhost:5001/api/auth/register \
+# Test if the API is running
+curl http://localhost:5000/api/health
+
+# Expected response
+{
+  "status": "healthy",
+  "timestamp": "2024-01-01T12:00:00Z"
+}
+```
+
+## 🔐 Authentication
+
+### JWT Authentication Flow
+
+Flokie uses JWT (JSON Web Token) for secure authentication:
+
+1. **Register/Login** → Receive access and refresh tokens
+2. **API Calls** → Include access token in Authorization header
+3. **Token Refresh** → Use refresh token to get new access token
+
+### Token Types
+
+| Token Type | Purpose | Default Expiry | Usage |
+|------------|---------|----------------|-------|
+| **Access Token** | API authentication | 1 hour | Include in `Authorization` header |
+| **Refresh Token** | Token renewal | 30 days | Use to get new access tokens |
+
+### Authentication Headers
+
+```bash
+# Include in all authenticated requests
+Authorization: Bearer <your-access-token>
+Content-Type: application/json
+```
+
+## 📖 API Endpoints
+
+### 🔑 Authentication Endpoints
+
+#### User Registration
+
+Register a new user account with email verification.
+
+**Endpoint**: `POST /api/auth/register`
+
+**Request Body**:
+```json
+{
+  "username": "johndoe",
+  "email": "john@example.com",
+  "password": "SecurePassword123!",
+  "first_name": "John",
+  "last_name": "Doe"
+}
+```
+
+**cURL Example**:
+```bash
+curl -X POST http://localhost:5000/api/auth/register \
   -H "Content-Type: application/json" \
   -d '{
     "username": "johndoe",
@@ -46,7 +99,7 @@ curl -X POST http://localhost:5001/api/auth/register \
   }'
 ```
 
-**响应示例**:
+**Success Response** (201):
 ```json
 {
   "success": true,

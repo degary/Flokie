@@ -1,641 +1,442 @@
-# Flask API Template
+# 🚀 Flokie - Production-Ready Flask API Template
 
-一个功能完整、生产就绪的 Flask API 项目模板，提供现代化的架构设计和最佳实践配置。
+[![CI](https://github.com/yourusername/flokie/workflows/Continuous%20Integration/badge.svg)](https://github.com/yourusername/flokie/actions)
+[![CD](https://github.com/yourusername/flokie/workflows/Continuous%20Deployment/badge.svg)](https://github.com/yourusername/flokie/actions)
+[![Python Version](https://img.shields.io/badge/python-3.9%2B-blue.svg)](https://python.org)
+[![Flask Version](https://img.shields.io/badge/flask-2.3%2B-green.svg)](https://flask.palletsprojects.com/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Code Style: Black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
+[![Pre-commit](https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit&logoColor=white)](https://github.com/pre-commit/pre-commit)
+[![Coverage](https://img.shields.io/badge/coverage-80%25-brightgreen.svg)](https://github.com/yourusername/flokie)
 
-## 🚀 特性
+> 🏗️ **A comprehensive, enterprise-grade Flask API template** designed for building scalable, maintainable web applications with modern development practices, complete CI/CD pipelines, and production-ready deployment configurations.
 
-- **现代化架构**: 分层架构设计，清晰的代码组织
-- **JWT 认证**: 完整的用户认证和授权系统
-- **API 文档**: 自动生成的 Swagger/OpenAPI 文档
-- **数据库集成**: SQLAlchemy ORM 和数据库迁移支持
-- **多环境支持**: 开发、测试、验收、生产环境配置
-- **容器化部署**: Docker 和 Docker Compose 支持
-- **CI/CD 就绪**: GitHub Actions 工作流配置
-- **代码质量**: Black、isort、flake8 代码质量工具
-- **测试框架**: pytest 单元测试和集成测试
-- **错误处理**: 统一的异常处理和错误响应
-- **日志系统**: 结构化日志记录和监控
-- **健康检查**: 应用和系统健康状态监控
+## 🌟 Why Choose Flokie?
 
-## 📋 目录
+Flokie eliminates the repetitive setup work and provides a solid foundation for your Flask API projects with:
 
-- [快速开始](#快速开始)
-- [项目结构](#项目结构)
-- [API 文档](#api-文档)
-- [开发指南](#开发指南)
-- [部署指南](#部署指南)
-- [配置说明](#配置说明)
-- [测试](#测试)
-- [网络优化](#网络优化)
-- [贡献指南](#贡献指南)
+- ⚡ **Rapid Development**: Get started in minutes with pre-configured development environment
+- 🔒 **Security First**: Built-in JWT authentication, input validation, and security best practices
+- 🧪 **Test-Driven**: Comprehensive test suite with 80%+ coverage and automated testing
+- 🚀 **Production Ready**: Docker containers, CI/CD pipelines, and deployment configurations
+- 📚 **Well Documented**: Interactive API docs, comprehensive guides, and code examples
+- 🛠️ **Developer Experience**: Hot reload, code formatting, linting, and debugging tools
 
-## 🏃‍♂️ 快速开始
+## ✨ Key Features
 
-### 前置要求
+<details>
+<summary><strong>🔐 Authentication & Security</strong></summary>
 
-- Python 3.11+
-- Docker 和 Docker Compose (可选，用于容器化部署)
-- Git
+- **JWT Authentication**: Secure token-based authentication with access/refresh tokens
+- **Password Security**: Bcrypt hashing with account lockout protection
+- **Email Verification**: Account activation via email verification
+- **Password Reset**: Secure password reset with time-limited tokens
+- **Account Management**: User activation, deactivation, and admin controls
+- **Security Headers**: CORS, CSP, and other security headers configured
+- **Input Validation**: Comprehensive request validation with detailed error messages
 
-### 安装和运行
+</details>
 
-1. **克隆项目**
-   ```bash
-   git clone <repository-url>
-   cd flask-api-template
-   ```
+<details>
+<summary><strong>👥 User Management</strong></summary>
 
-2. **设置开发环境**
+- **User Registration**: Complete signup flow with validation
+- **Profile Management**: User profile CRUD operations
+- **User Search**: Advanced search and filtering capabilities
+- **Account States**: Active, inactive, verified, locked account states
+- **Admin Features**: User management for administrative users
+- **Audit Trail**: Login tracking and security event logging
 
-   **中国大陆用户（推荐）**:
-   ```bash
-   # 快速设置 pip 镜像源（推荐）
-   make quick-setup
+</details>
 
-   # 或完整的一键设置（包含镜像源配置、依赖安装等）
-   make setup-china
-   ```
+<details>
+<summary><strong>🗄️ Database & ORM</strong></summary>
 
-   **其他用户**:
-   ```bash
-   # 安装开发依赖和设置 pre-commit hooks
-   make install-dev
+- **SQLAlchemy Integration**: Powerful ORM with relationship management
+- **Database Migrations**: Alembic-powered schema versioning
+- **Multiple Database Support**: PostgreSQL (recommended), MySQL, SQLite
+- **Connection Pooling**: Optimized database connection management
+- **Query Optimization**: Built-in query performance monitoring
+- **Data Validation**: Model-level validation with custom validators
 
-   # 或者手动安装
-   pip install -r requirements/development.txt
-   pre-commit install
-   ```
+</details>
 
-3. **配置环境变量**
-   ```bash
-   # 复制环境变量模板
-   cp .env.example .env
+<details>
+<summary><strong>📚 API Documentation</strong></summary>
 
-   # 编辑 .env 文件，设置必要的配置
-   # 至少需要设置 SECRET_KEY 和 JWT_SECRET_KEY
-   ```
+- **Interactive Swagger UI**: Auto-generated API documentation
+- **Flask-RESTX Integration**: Automatic schema generation
+- **Request/Response Models**: Comprehensive data model definitions
+- **API Examples**: Working code examples and test cases
+- **Postman Collection**: Ready-to-use API collection for testing
 
-4. **初始化数据库**
-   ```bash
-   make db-init
-   ```
+</details>
 
-5. **启动开发服务器**
-   ```bash
-   # 使用增强的开发服务器（推荐）
-   make run-dev
+<details>
+<summary><strong>🧪 Testing & Quality</strong></summary>
 
-   # 或使用基本的 Flask 开发服务器
-   make run
-   ```
+- **Comprehensive Test Suite**: Unit, integration, and API tests
+- **80%+ Test Coverage**: High code coverage with detailed reporting
+- **Pytest Framework**: Modern testing with fixtures and parametrization
+- **Test Factories**: Reusable test data generation
+- **Performance Testing**: Load testing with Locust integration
+- **Code Quality Tools**: Black, isort, flake8, and pre-commit hooks
 
-6. **访问应用**
-   - API 基础地址: http://localhost:5001/api
-   - API 文档: http://localhost:5001/api/doc/
-   - API 规范: http://localhost:5001/api/swagger.json
-   - 健康检查: http://localhost:5001/api/health
+</details>
 
-### Docker 快速启动
+<details>
+<summary><strong>🚀 DevOps & Deployment</strong></summary>
 
-```bash
-# 启动开发环境
-docker-compose -f docker-compose.dev.yml up -d --build
+- **Docker Support**: Multi-stage builds for development and production
+- **Docker Compose**: Complete environment orchestration
+- **CI/CD Pipelines**: GitHub Actions for automated testing and deployment
+- **Multi-Environment**: Development, acceptance, and production configurations
+- **Health Checks**: Application and infrastructure health monitoring
+- **Blue-Green Deployment**: Zero-downtime deployment strategy
 
-# 查看日志
-docker-compose -f docker-compose.dev.yml logs -f
+</details>
 
-# 停止服务
-docker-compose -f docker-compose.dev.yml down
-```
+## 🚀 Quick Start
 
-> 📖 详细的 Docker 使用指南请参考 [DOCKER_QUICK_START.md](DOCKER_QUICK_START.md)
-
-### 网络问题解决
-
-如果在中国大陆遇到网络问题，可以使用以下命令：
+### 🔧 Local Development Setup
 
 ```bash
-# 网络诊断
-make network-test
+# 1. Clone the repository
+git clone https://github.com/yourusername/flokie.git
+cd flokie
 
-# 配置 pip 镜像源
-make configure-pip
+# 2. Set up Python environment
+python -m venv venv
+source venv/bin/activate  # Windows: venv\Scripts\activate
 
-# 测试 pip 速度
-make test-pip
+# 3. Install dependencies
+make install-dev
 
-# 优化 Docker 构建
-make docker-build
+# 4. Configure environment
+cp .env.example .env
+# Edit .env with your settings
+
+# 5. Initialize database
+make upgrade
+
+# 6. Run the application
+make run-dev
 ```
 
-## 📁 项目结构
+🎉 **Your API is now running at `http://localhost:5000`**
 
-```
-flask-api-template/
-├── app/                          # 应用主目录
-│   ├── __init__.py              # Flask 应用工厂
-│   ├── config/                  # 配置文件
-│   │   ├── base.py             # 基础配置
-│   │   ├── development.py      # 开发环境配置
-│   │   ├── testing.py          # 测试环境配置
-│   │   ├── acceptance.py       # 验收环境配置
-│   │   └── production.py       # 生产环境配置
-│   ├── models/                  # 数据模型
-│   │   ├── base.py             # 基础模型类
-│   │   └── user.py             # 用户模型
-│   ├── services/                # 业务逻辑层
-│   │   ├── auth_service.py     # 认证服务
-│   │   └── user_service.py     # 用户服务
-│   ├── controllers/             # 控制器层
-│   │   ├── auth_controller.py  # 认证控制器
-│   │   ├── user_controller.py  # 用户控制器
-│   │   └── health_controller.py # 健康检查控制器
-│   ├── api/                     # API 文档定义
-│   │   ├── auth_namespace.py   # 认证 API 文档
-│   │   ├── user_namespace.py   # 用户 API 文档
-│   │   ├── health_namespace.py # 健康检查 API 文档
-│   │   └── models.py           # API 模型定义
-│   ├── middleware/              # 中间件
-│   │   ├── auth_middleware.py  # 认证中间件
-│   │   └── logging_middleware.py # 日志中间件
-│   ├── schemas/                 # 数据验证模式
-│   │   ├── auth_schemas.py     # 认证数据模式
-│   │   ├── user_schemas.py     # 用户数据模式
-│   │   └── common_schemas.py   # 通用数据模式
-│   ├── utils/                   # 工具函数
-│   │   ├── exceptions.py       # 自定义异常
-│   │   ├── error_handlers.py   # 错误处理器
-│   │   ├── validation.py       # 数据验证工具
-│   │   └── logging_config.py   # 日志配置
-│   └── extensions.py            # Flask 扩展初始化
-├── tests/                       # 测试目录
-│   ├── unit/                   # 单元测试
-│   ├── integration/            # 集成测试
-│   ├── conftest.py            # pytest 配置
-│   └── factories.py           # 测试数据工厂
-├── migrations/                  # 数据库迁移文件
-├── scripts/                     # 脚本工具
-│   ├── setup_dev.sh           # 开发环境设置
-│   ├── dev_server.py          # 增强开发服务器
-│   ├── shell_context.py       # 交互式 shell
-│   ├── init_db.py             # 数据库初始化
-│   ├── deploy.sh              # 部署脚本
-│   └── manage_secrets.sh      # 密钥管理
-├── docker/                      # Docker 配置
-│   ├── Dockerfile             # 生产环境镜像
-│   ├── Dockerfile.dev         # 开发环境镜像
-│   └── healthcheck.sh         # 健康检查脚本
-├── .github/                     # GitHub Actions 工作流
-│   └── workflows/
-│       ├── ci.yml             # 持续集成
-│       └── cd.yml             # 持续部署
-├── docs/                        # 文档
-│   ├── development.md         # 开发指南
-│   └── deployment.md          # 部署指南
-├── requirements/                # 依赖文件
-│   ├── base.txt              # 基础依赖
-│   ├── development.txt       # 开发依赖
-│   ├── testing.txt           # 测试依赖
-│   └── production.txt        # 生产依赖
-├── .env.example                # 环境变量模板
-├── Makefile                    # 开发命令
-├── pyproject.toml             # 项目配置
-├── run.py                     # 开发服务器入口
-└── wsgi.py                    # WSGI 入口
-```
-
-## 📚 API 文档
-
-### 自动生成的文档
-
-启动应用后，访问以下地址查看 API 文档：
-
-- **Swagger UI**: http://localhost:5001/api/doc/
-- **OpenAPI JSON**: http://localhost:5001/api/swagger.json
-
-### 主要 API 端点
-
-#### 认证 API (`/api/auth`)
-
-- `POST /auth/login` - 用户登录
-- `POST /auth/register` - 用户注册
-- `POST /auth/refresh` - 刷新访问令牌
-- `POST /auth/logout` - 用户登出
-- `GET /auth/me` - 获取当前用户信息
-- `POST /auth/password/reset-request` - 请求密码重置
-- `POST /auth/password/reset` - 重置密码
-- `POST /auth/password/change` - 修改密码
-- `POST /auth/email/verify` - 验证邮箱
-
-#### 用户管理 API (`/api/users`)
-
-- `GET /users` - 获取用户列表（分页）
-- `POST /users` - 创建新用户
-- `GET /users/{id}` - 获取用户详情
-- `PUT /users/{id}` - 更新用户信息
-- `DELETE /users/{id}` - 删除用户
-- `POST /users/{id}/activate` - 激活用户
-- `POST /users/{id}/deactivate` - 停用用户
-- `POST /users/{id}/unlock` - 解锁用户
-- `POST /users/{id}/admin` - 设置管理员权限
-- `GET /users/search` - 搜索用户
-- `GET /users/statistics` - 用户统计信息
-
-#### 健康检查 API (`/api/health`)
-
-- `GET /health` - 基础健康检查
-- `GET /health/detailed` - 详细健康检查
-- `GET /health/database` - 数据库健康检查
-- `GET /health/system` - 系统资源检查
-- `GET /health/readiness` - 就绪状态检查
-- `GET /health/liveness` - 存活状态检查
-
-### API 使用示例
-
-#### 用户注册和登录
+### 🐳 Docker Quick Start
 
 ```bash
-# 注册新用户
-curl -X POST http://localhost:5001/api/auth/register \
-  -H "Content-Type: application/json" \
-  -d '{
-    "username": "testuser",
-    "email": "test@example.com",
-    "password": "SecurePassword123!",
-    "first_name": "Test",
-    "last_name": "User"
-  }'
+# Development environment
+docker-compose -f docker-compose.dev.yml up --build
 
-# 用户登录
-curl -X POST http://localhost:5001/api/auth/login \
-  -H "Content-Type: application/json" \
-  -d '{
-    "username": "testuser",
-    "password": "SecurePassword123!"
-  }'
-
-# 响应示例
-{
-  "success": true,
-  "message": "Login successful",
-  "data": {
-    "access_token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9...",
-    "refresh_token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9...",
-    "user": {
-      "id": 1,
-      "username": "testuser",
-      "email": "test@example.com",
-      "first_name": "Test",
-      "last_name": "User",
-      "is_active": true,
-      "is_verified": false,
-      "is_admin": false
-    }
-  }
-}
-```
-
-#### 使用 JWT 令牌访问受保护的端点
-
-```bash
-# 获取当前用户信息
-curl -X GET http://localhost:5001/api/auth/me \
-  -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
-
-# 获取用户列表（需要管理员权限）
-curl -X GET http://localhost:5001/api/users \
-  -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
-```
-
-## 🛠 开发指南
-
-### 开发环境设置
-
-详细的开发环境设置指南请参考 [docs/development.md](docs/development.md)。
-
-### 常用开发命令
-
-```bash
-# 验证项目设置
-make verify
-
-# 代码格式化
-make format
-
-# 代码质量检查
-make lint
-
-# 运行测试
-make test
-
-# 启动交互式 shell
-make shell
-
-# 查看当前配置
-make debug-config
-
-# 验证开发环境
-make validate-env
-```
-
-### 添加新的 API 端点
-
-1. **创建数据模型** (如果需要)
-   ```python
-   # app/models/your_model.py
-   from app.models.base import BaseModel
-
-   class YourModel(BaseModel):
-       __tablename__ = 'your_table'
-       # 定义字段
-   ```
-
-2. **创建服务层**
-   ```python
-   # app/services/your_service.py
-   class YourService:
-       @staticmethod
-       def create_item(data):
-           # 业务逻辑
-           pass
-   ```
-
-3. **创建控制器**
-   ```python
-   # app/controllers/your_controller.py
-   from flask import Blueprint
-
-   your_bp = Blueprint('your', __name__)
-
-   @your_bp.route('/items', methods=['POST'])
-   def create_item():
-       # 处理请求
-       pass
-   ```
-
-4. **添加 API 文档**
-   ```python
-   # app/api/your_namespace.py
-   from flask_restx import Namespace, Resource
-
-   your_ns = Namespace('your', description='Your operations')
-
-   @your_ns.route('/items')
-   class YourResource(Resource):
-       def post(self):
-           """Create new item"""
-           pass
-   ```
-
-5. **注册蓝图和命名空间**
-   ```python
-   # app/__init__.py
-   from app.controllers.your_controller import your_bp
-   from app.api.your_namespace import your_ns
-
-   def create_app(config_name):
-       # ...
-       app.register_blueprint(your_bp, url_prefix='/api')
-       api.add_namespace(your_ns)
-   ```
-
-### 数据库操作
-
-```bash
-# 创建新的迁移
-flask db migrate -m "Add new table"
-
-# 应用迁移
-flask db upgrade
-
-# 回滚迁移
-flask db downgrade
-
-# 查看迁移历史
-flask db history
-```
-
-## 🚀 部署指南
-
-详细的部署指南请参考 [docs/deployment.md](docs/deployment.md)。
-
-### 快速部署
-
-#### 开发环境
-```bash
-./scripts/deploy.sh dev up
-```
-
-#### 生产环境
-```bash
-# 生成密钥
-./scripts/manage_secrets.sh generate prod
-
-# 验证配置
-python scripts/validate_config.py prod
-
-# 部署
-./scripts/deploy.sh prod up --build
-```
-
-### Docker 部署
-
-```bash
-# 构建镜像
-docker build -t flask-api-template .
-
-# 运行容器
-docker run -d \
-  --name flask-api \
-  -p 5000:5000 \
-  --env-file .env.prod \
-  flask-api-template
-```
-
-### Docker Compose 部署
-
-```bash
-# 生产环境
+# Production environment
 docker-compose -f docker-compose.prod.yml up -d
-
-# 查看状态
-docker-compose -f docker-compose.prod.yml ps
-
-# 查看日志
-docker-compose -f docker-compose.prod.yml logs -f
 ```
 
-## ⚙️ 配置说明
-
-### 环境变量
-
-| 变量名 | 描述 | 默认值 | 必需 |
-|--------|------|--------|------|
-| `FLASK_CONFIG` | 运行环境 | `development` | 否 |
-| `SECRET_KEY` | Flask 密钥 | - | 是 |
-| `JWT_SECRET_KEY` | JWT 签名密钥 | - | 是 |
-| `DATABASE_URL` | 数据库连接字符串 | `sqlite:///app.db` | 否 |
-| `FLASK_HOST` | 服务器主机 | `0.0.0.0` | 否 |
-| `FLASK_PORT` | 服务器端口 | `5000` | 否 |
-| `LOG_LEVEL` | 日志级别 | `INFO` | 否 |
-
-### 配置环境
-
-- **development**: 开发环境，启用调试模式
-- **testing**: 测试环境，使用内存数据库
-- **acceptance**: 验收环境，生产级配置
-- **production**: 生产环境，最高安全级别
-
-### 数据库配置
-
-支持多种数据库：
+### ⚡ One-Command Setup
 
 ```bash
-# SQLite (开发环境)
-DATABASE_URL=sqlite:///app.db
-
-# PostgreSQL (生产环境推荐)
-DATABASE_URL=postgresql://user:password@localhost/dbname
-
-# MySQL
-DATABASE_URL=mysql://user:password@localhost/dbname
+# Automated setup script
+./scripts/quick_setup.sh
 ```
 
-## 🧪 测试
+## 📖 API Documentation & Examples
 
-### 运行测试
+### 🔗 Interactive Documentation
+- **Swagger UI**: http://localhost:5000/docs
+- **Health Check**: http://localhost:5000/api/health
+- **API Status**: http://localhost:5000/
 
-```bash
-# 运行所有测试
-make test
-
-# 运行单元测试
-make test-unit
-
-# 运行集成测试
-make test-integration
-
-# 运行特定测试文件
-pytest tests/unit/test_user_service.py -v
-
-# 运行特定测试方法
-pytest tests/unit/test_user_service.py::TestUserService::test_create_user -v
-```
-
-### 测试覆盖率
-
-测试覆盖率报告会自动生成：
-
-- **终端输出**: 显示覆盖率摘要
-- **HTML 报告**: `htmlcov/index.html`
-- **XML 报告**: `coverage.xml`
-
-### 编写测试
+### 🔑 Authentication Flow
 
 ```python
-# tests/unit/test_your_service.py
-import pytest
-from app.services.your_service import YourService
+import requests
 
-class TestYourService:
-    def test_create_item(self):
-        # 测试逻辑
-        result = YourService.create_item({'name': 'test'})
-        assert result is not None
+# Register a new user
+response = requests.post('http://localhost:5000/api/auth/register', json={
+    'username': 'johndoe',
+    'email': 'john@example.com',
+    'password': 'securepassword123'
+})
+
+# Login and get tokens
+response = requests.post('http://localhost:5000/api/auth/login', json={
+    'username_or_email': 'johndoe',
+    'password': 'securepassword123'
+})
+
+tokens = response.json()['tokens']
+access_token = tokens['access_token']
+
+# Use token for authenticated requests
+headers = {'Authorization': f'Bearer {access_token}'}
+profile = requests.get('http://localhost:5000/api/users/profile', headers=headers)
 ```
 
-## 🌐 网络优化
+### 📋 Core API Endpoints
 
-针对中国大陆地区的网络环境，我们提供了完整的网络优化解决方案：
+| Endpoint | Method | Description | Auth Required |
+|----------|--------|-------------|---------------|
+| `/api/auth/register` | POST | User registration | ❌ |
+| `/api/auth/login` | POST | User login | ❌ |
+| `/api/auth/refresh` | POST | Refresh access token | ✅ (Refresh) |
+| `/api/auth/logout` | POST | User logout | ✅ |
+| `/api/auth/password/reset-request` | POST | Request password reset | ❌ |
+| `/api/auth/password/reset` | POST | Reset password | ❌ |
+| `/api/auth/password/change` | POST | Change password | ✅ |
+| `/api/auth/email/verify` | POST | Verify email address | ❌ |
+| `/api/users/profile` | GET/PUT | User profile management | ✅ |
+| `/api/users` | GET | List users (admin) | ✅ (Admin) |
+| `/api/health` | GET | Basic health check | ❌ |
+| `/api/health/detailed` | GET | Detailed system status | ❌ |
 
-### 快速解决网络问题
+## 🏗️ Architecture Overview
+
+```
+flokie/
+├── 📁 app/                          # Application core
+│   ├── 📁 api/                      # Flask-RESTX API documentation
+│   │   ├── auth_namespace.py        # Authentication API docs
+│   │   ├── user_namespace.py        # User management API docs
+│   │   ├── health_namespace.py      # Health check API docs
+│   │   └── models.py                # API response models
+│   ├── 📁 controllers/              # Request handlers (Flask blueprints)
+│   │   ├── auth_controller.py       # Authentication endpoints
+│   │   ├── user_controller.py       # User management endpoints
+│   │   ├── health_controller.py     # Health check endpoints
+│   │   └── doc_controller.py        # Documentation endpoints
+│   ├── 📁 services/                 # Business logic layer
+│   │   ├── auth_service.py          # Authentication business logic
+│   │   └── user_service.py          # User management business logic
+│   ├── 📁 models/                   # Database models (SQLAlchemy)
+│   │   ├── base.py                  # Base model with common fields
+│   │   └── user.py                  # User model with authentication
+│   ├── 📁 schemas/                  # Data validation schemas (Marshmallow)
+│   │   ├── auth_schemas.py          # Authentication request/response schemas
+│   │   ├── user_schemas.py          # User management schemas
+│   │   └── common_schemas.py        # Shared validation schemas
+│   ├── 📁 middleware/               # Custom middleware
+│   │   ├── auth_middleware.py       # JWT authentication middleware
+│   │   ├── logging_middleware.py    # Request/response logging
+│   │   └── performance_middleware.py # Performance monitoring
+│   ├── 📁 utils/                    # Utility functions
+│   │   ├── exceptions.py            # Custom exception classes
+│   │   ├── error_handlers.py        # Global error handling
+│   │   ├── error_helpers.py         # Error handling utilities
+│   │   ├── validation.py            # Input validation helpers
+│   │   └── logging_config.py        # Logging configuration
+│   ├── 📁 config/                   # Environment configurations
+│   │   ├── base.py                  # Base configuration
+│   │   ├── development.py           # Development settings
+│   │   ├── testing.py               # Testing settings
+│   │   ├── acceptance.py            # Acceptance testing settings
+│   │   └── production.py            # Production settings
+│   └── extensions.py                # Flask extensions initialization
+├── 📁 tests/                        # Comprehensive test suite
+│   ├── 📁 unit/                     # Unit tests for individual components
+│   ├── 📁 integration/              # Integration tests for workflows
+│   ├── conftest.py                  # Pytest configuration and fixtures
+│   ├── factories.py                 # Test data factories
+│   └── utils.py                     # Test utilities and helpers
+├── 📁 scripts/                      # Utility and deployment scripts
+├── 📁 docs/                         # Project documentation
+├── 📁 .github/                      # GitHub Actions CI/CD workflows
+├── 📁 docker/                       # Docker configurations
+├── 📁 nginx/                        # Nginx reverse proxy configuration
+└── 📁 requirements/                 # Python dependencies by environment
+```
+
+## 🧪 Development & Testing
+
+### 🔧 Development Commands
 
 ```bash
-# 中国大陆用户一键设置（推荐）
-make setup-china
+# Code quality and formatting
+make format                 # Format code with Black and isort
+make lint                   # Run flake8 linting
+make security-check         # Run security scans
 
-# 网络诊断
-make network-test
+# Testing
+make test                   # Run all tests
+make test-coverage          # Run tests with coverage report
+make test-unit              # Run unit tests only
+make test-integration       # Run integration tests only
 
-# 配置 pip 镜像源
-make configure-pip
+# Database operations
+make migrate message="Add new field"  # Create migration
+make upgrade                # Apply migrations
+make downgrade              # Rollback migrations
 
-# 测试 pip 速度
-make test-pip
-
-# 优化 Docker 构建
-make docker-build
+# Development server
+make run-dev                # Development server with debug
+make run                    # Standard development server
+make shell                  # Flask shell with context
 ```
 
-### 支持的优化功能
+### 🧪 Testing Strategy
 
-- **pip 镜像源**: 支持阿里云、腾讯云、豆瓣等多个国内镜像源
-- **Docker 优化**: 容器构建时自动使用镜像源，避免超时
-- **网络诊断**: 全面的网络连接和速度测试
-- **一键设置**: 中国大陆用户专用的自动化设置脚本
+The project includes a comprehensive testing strategy with multiple test types:
 
-详细信息请参考 [网络优化指南](docs/network-optimization.md)。
+- **Unit Tests** (`tests/unit/`): Test individual components in isolation
+- **Integration Tests** (`tests/integration/`): Test component interactions
+- **API Tests**: Test complete request/response cycles
+- **Performance Tests**: Load testing and benchmarking
+- **Security Tests**: Vulnerability scanning and security validation
 
-## 🤝 贡献指南
-
-### 开发流程
-
-1. **Fork 项目**
-2. **创建功能分支**
-   ```bash
-   git checkout -b feature/your-feature-name
-   ```
-3. **提交更改**
-   ```bash
-   git commit -m "Add your feature"
-   ```
-4. **推送分支**
-   ```bash
-   git push origin feature/your-feature-name
-   ```
-5. **创建 Pull Request**
-
-### 代码规范
-
-- 使用 **Black** 进行代码格式化
-- 使用 **isort** 进行导入排序
-- 使用 **flake8** 进行代码检查
-- 编写测试用例，保持测试覆盖率 > 80%
-- 添加适当的文档字符串
-
-### 提交信息规范
-
-```
-type(scope): description
-
-[optional body]
-
-[optional footer]
+```bash
+# Run specific test categories
+pytest tests/unit/ -v                    # Unit tests
+pytest tests/integration/ -v             # Integration tests
+pytest -m "auth" -v                      # Authentication tests
+pytest -m "not slow" -v                  # Skip slow tests
+pytest --cov=app --cov-report=html       # Coverage report
 ```
 
-类型：
-- `feat`: 新功能
-- `fix`: 错误修复
-- `docs`: 文档更新
-- `style`: 代码格式化
-- `refactor`: 代码重构
-- `test`: 测试相关
-- `chore`: 构建过程或辅助工具的变动
+### 📊 Code Quality Metrics
 
-## 📄 许可证
+- **Test Coverage**: 80%+ required
+- **Code Style**: Black formatting enforced
+- **Import Sorting**: isort configuration
+- **Linting**: flake8 with custom rules
+- **Type Hints**: Encouraged throughout codebase
+- **Security**: Bandit security linting
+- **Dependencies**: Safety vulnerability checking
 
-本项目采用 MIT 许可证。详情请参阅 [LICENSE](LICENSE) 文件。
+## 🚀 Deployment
 
-## 🆘 获取帮助
+### 🐳 Docker Deployment
 
-- **文档**: 查看 `docs/` 目录下的详细文档
-- **Issues**: 在 GitHub 上提交问题
-- **讨论**: 使用 GitHub Discussions 进行讨论
+The project includes optimized Docker configurations for different environments:
 
-## 🙏 致谢
+```bash
+# Development
+docker-compose -f docker-compose.dev.yml up --build
 
-感谢所有为这个项目做出贡献的开发者和开源社区。
+# Acceptance Testing
+docker-compose -f docker-compose.acc.yml up -d
+
+# Production
+docker-compose -f docker-compose.prod.yml up -d
+```
+
+### ☁️ Cloud Deployment
+
+Ready-to-use configurations for major cloud providers:
+
+- **AWS**: ECS, Elastic Beanstalk, Lambda
+- **Google Cloud**: Cloud Run, GKE, App Engine
+- **Azure**: Container Instances, App Service
+- **Heroku**: One-click deployment
+- **DigitalOcean**: App Platform, Droplets
+
+### 🔄 CI/CD Pipeline
+
+Automated GitHub Actions workflows:
+
+- **Continuous Integration**: Code quality, testing, security scans
+- **Continuous Deployment**: Multi-environment deployment pipeline
+- **Security Scanning**: Dependency and container vulnerability scans
+- **Performance Testing**: Automated performance benchmarks
+- **Release Management**: Automated versioning and changelog generation
+
+## 📚 Documentation
+
+### 📖 Available Guides
+
+- [**Quick Start Guide**](docs/quick-start.md) - Get up and running in minutes
+- [**Project Overview**](docs/project-overview.md) - Architecture and design principles
+- [**Features Documentation**](docs/features.md) - Comprehensive feature list with examples
+- [**API Guide**](docs/api-guide.md) - Comprehensive API documentation with examples
+- [**Development Guide**](docs/development.md) - Local development setup and workflows
+- [**Deployment Guide**](docs/deployment.md) - Production deployment and infrastructure
+- [**Security Guide**](docs/security.md) - Security features and best practices
+- [**FAQ & Troubleshooting**](docs/faq-troubleshooting.md) - Common issues and solutions
+
+### 🔧 Configuration
+
+The application supports multiple configuration environments:
+
+- **Development** (`.env.dev`): Local development with debug enabled
+- **Testing** (`.env.test`): Automated testing configuration
+- **Acceptance** (`.env.acc`): Acceptance testing environment
+- **Production** (`.env.prod`): Production deployment settings
+
+Key configuration options:
+
+```bash
+# Application
+FLASK_CONFIG=production
+SECRET_KEY=your-secret-key
+DEBUG=False
+
+# Database
+DATABASE_URL=postgresql://user:pass@localhost/dbname
+
+# JWT Authentication
+JWT_SECRET_KEY=your-jwt-secret
+JWT_ACCESS_TOKEN_EXPIRES_HOURS=1
+JWT_REFRESH_TOKEN_EXPIRES_DAYS=30
+
+# Email (optional)
+MAIL_SERVER=smtp.gmail.com
+MAIL_PORT=587
+MAIL_USERNAME=your-email@gmail.com
+MAIL_PASSWORD=your-app-password
+
+# Monitoring (optional)
+SENTRY_DSN=your-sentry-dsn
+NEW_RELIC_LICENSE_KEY=your-newrelic-key
+```
+
+## 🤝 Contributing
+
+We welcome contributions! Please see our [Contributing Guidelines](CONTRIBUTING.md) for details.
+
+### 🔄 Development Workflow
+
+1. **Fork** the repository
+2. **Create** a feature branch (`git checkout -b feature/amazing-feature`)
+3. **Make** your changes with tests
+4. **Run** the test suite (`make test`)
+5. **Commit** your changes (`git commit -m 'Add amazing feature'`)
+6. **Push** to your branch (`git push origin feature/amazing-feature`)
+7. **Open** a Pull Request
+
+### 📋 Code Standards
+
+- Follow PEP 8 style guidelines
+- Write comprehensive tests for new features
+- Update documentation for API changes
+- Use type hints where appropriate
+- Follow conventional commit messages
+
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## 🙏 Acknowledgments
+
+- [Flask](https://flask.palletsprojects.com/) - The web framework that powers this template
+- [SQLAlchemy](https://www.sqlalchemy.org/) - The Python SQL toolkit and ORM
+- [Flask-JWT-Extended](https://flask-jwt-extended.readthedocs.io/) - JWT token management
+- [Flask-RESTX](https://flask-restx.readthedocs.io/) - API documentation framework
+- [Pytest](https://pytest.org/) - Testing framework
+
+## 📞 Support & Community
+
+- 📖 **Documentation**: [Project Wiki](https://github.com/yourusername/flokie/wiki)
+- 🐛 **Bug Reports**: [GitHub Issues](https://github.com/yourusername/flokie/issues)
+- 💬 **Discussions**: [GitHub Discussions](https://github.com/yourusername/flokie/discussions)
+- 📧 **Email**: support@example.com
 
 ---
 
-**Flask API Template** - 让 API 开发更简单、更高效！
+<div align="center">
+
+**⭐ If this project helped you, please consider giving it a star! ⭐**
+
+Made with ❤️ by the Flokie team
+
+</div>
