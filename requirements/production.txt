@@ -20,7 +20,7 @@ cryptography==41.0.4
 newrelic==9.0.0
 
 # Health checks and metrics
-prometheus-client==0.17.1
+prometheus-client==0.22.1
 
 # Production utilities
 supervisor==4.2.5
