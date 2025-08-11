@@ -10,13 +10,13 @@ factory-boy==3.3.0
 responses==0.23.3
 
 # Code quality
-black==23.7.0
-flake8==6.0.0
-isort==5.12.0
+black==25.1.0
+flake8==7.3.0
+isort==6.0.1
 
 # Development tools
 flask-shell-ipython==0.5.3
-pre-commit==3.4.0
+pre-commit==4.3.0
 python-dotenv==1.0.0
 
 # Optional development tools (uncomment as needed)
