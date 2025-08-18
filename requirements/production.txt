@@ -17,7 +17,7 @@ sentry-sdk[flask]==1.32.0
 cryptography==41.0.4
 
 # Performance monitoring
-newrelic==9.0.0
+newrelic==10.16.0
 
 # Health checks and metrics
 prometheus-client==0.17.1
